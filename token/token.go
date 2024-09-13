@@ -9,9 +9,16 @@ const (
 	IDENT = "IDENT" // add, foobar, x, y, ...
 	INT   = "INT"   // 123456
 
-	ASSIGN = "="
-	PLUS   = "+"
-	MINUS  = "-"
+	ASSIGN   = "="
+	PLUS     = "+"
+	MINUS    = "-"
+	BANG     = "!"
+	ASTERISK = "*"
+	SLASH    = "/"
+	LT       = "<"
+	GT       = ">"
+	EQ       = "=="
+	NOT_EQ   = "!="
 
 	COMMA     = ","
 	SEMICOLON = ";"
@@ -23,24 +30,41 @@ const (
 
 	FUNCTION = "FUNCTION"
 	LET      = "LET"
+	TRUE     = "TRUE"
+	FALSE    = "FALSE"
+	IF       = "IF"
+	ELSE     = "ELSE"
+	RETURN   = "RETURN"
 )
 
 var (
 	tokenStringsToTokenType = map[string]Type{
-		"=": ASSIGN,
-		"+": PLUS,
-		"-": MINUS,
-		",": COMMA,
-		";": SEMICOLON,
-		"(": LPAREN,
-		")": RPAREN,
-		"{": LBRACE,
-		"}": RBRACE,
+		"=":  ASSIGN,
+		"+":  PLUS,
+		"-":  MINUS,
+		"!":  BANG,
+		"*":  ASTERISK,
+		"/":  SLASH,
+		"==": EQ,
+		"!=": NOT_EQ,
+		"<":  LT,
+		">":  GT,
+		",":  COMMA,
+		";":  SEMICOLON,
+		"(":  LPAREN,
+		")":  RPAREN,
+		"{":  LBRACE,
+		"}":  RBRACE,
 	}
 
 	keywords = map[string]Type{
-		"fn":  FUNCTION,
-		"let": LET,
+		"fn":     FUNCTION,
+		"let":    LET,
+		"true":   TRUE,
+		"false":  FALSE,
+		"if":     IF,
+		"else":   ELSE,
+		"return": RETURN,
 	}
 )
 
@@ -50,12 +74,16 @@ type Token struct {
 }
 
 func NewFromKeyword(keyword byte) Token {
-	t, ok := tokenStringsToTokenType[string(keyword)]
+	return NewFromString(string(keyword))
+}
+
+func NewFromString(keyword string) Token {
+	t, ok := tokenStringsToTokenType[keyword]
 	if !ok {
-		return Token{Type: ILLEGAL, Literal: string(keyword)}
+		return Token{Type: ILLEGAL, Literal: keyword}
 	}
 
-	return Token{Type: t, Literal: string(keyword)}
+	return Token{Type: t, Literal: keyword}
 }
 
 func New(tokenType Type, ch byte) Token {

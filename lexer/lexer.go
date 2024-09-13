@@ -16,13 +16,17 @@ func New(input string) *Lexer {
 }
 
 func (l *Lexer) readChar() {
-	if l.readPosition >= len(l.input) {
-		l.ch = 0
-	} else {
-		l.ch = l.input[l.readPosition]
-	}
+	l.ch = l.peekChar()
 	l.position = l.readPosition
 	l.readPosition += 1
+}
+
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	} else {
+		return l.input[l.readPosition]
+	}
 }
 
 func (l *Lexer) NextToken() token.Token {
@@ -31,7 +35,21 @@ func (l *Lexer) NextToken() token.Token {
 	l.skipWhitespace()
 
 	switch l.ch {
-	case '=', ';', '(', ')', ',', '+', '{', '}':
+	case '=':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = token.NewFromString("==")
+			break
+		}
+		tok = token.NewFromKeyword(l.ch)
+	case '!':
+		if l.peekChar() == '=' {
+			l.readChar()
+			tok = token.NewFromString("!=")
+			break
+		}
+		tok = token.NewFromKeyword(l.ch)
+	case '+', '-', '*', '/', '<', '>', ',', ';', '(', ')', '{', '}':
 		tok = token.NewFromKeyword(l.ch)
 	case 0:
 		tok.Literal = ""
