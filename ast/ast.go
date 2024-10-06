@@ -1,6 +1,8 @@
 package ast
 
-import "github.com/buraksenn/fizzle/token"
+import (
+	"github.com/buraksenn/fizzle/token"
+)
 
 type Node interface {
 	TokenLiteral() string
