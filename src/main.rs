@@ -25,7 +25,12 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token {
         self.eat_whitespace();
         match self.chars.next() {
-            Some('=') => Token::Assign,
+            Some('=') => {
+                if let Some(_) = self.chars.next_if(|c| *c == '=') {
+                    return Token::Eq;
+                }
+                Token::Assign
+            }
             Some(';') => Token::Semicolon,
             Some(',') => Token::Comma,
 
@@ -36,7 +41,12 @@ impl<'a> Lexer<'a> {
 
             Some('+') => Token::Plus,
             Some('-') => Token::Minus,
-            Some('!') => Token::Bang,
+            Some('!') => {
+                if let Some(_) = self.chars.next_if(|c| *c == '=') {
+                    return Token::Neq;
+                }
+                Token::Bang
+            }
             Some('*') => Token::Asterisk,
             Some('/') => Token::Slash,
             Some('<') => Token::Lt,
@@ -88,6 +98,9 @@ mod tests {
         } else {
         return false;
         }
+
+        10 == 10;
+        10 != 9;
         ";
 
         let tests = vec![
@@ -156,6 +169,14 @@ mod tests {
             Token::False,
             Token::Semicolon,
             Token::Rbrace,
+            Token::Int(10),
+            Token::Eq,
+            Token::Int(10),
+            Token::Semicolon,
+            Token::Int(10),
+            Token::Neq,
+            Token::Int(9),
+            Token::Semicolon,
             Token::Eof,
         ];
 
