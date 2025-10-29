@@ -27,6 +27,11 @@ pub enum Token {
 
     Function,
     Let,
+    True,
+    False,
+    If,
+    Else,
+    Return,
 }
 
 impl Token {
@@ -34,6 +39,11 @@ impl Token {
         match ident.as_str() {
             "let" => Token::Let,
             "fn" => Token::Function,
+            "true" => Token::True,
+            "false" => Token::False,
+            "if" => Token::If,
+            "else" => Token::Else,
+            "return" => Token::Return,
             _ => Token::Ident(ident),
         }
     }
@@ -120,6 +130,12 @@ mod tests {
         let result = add(five, ten);
         !-/*5;
         5 < 10 > 5;
+
+        if (5 < 10) {
+        return true;
+        } else {
+        return false;
+        }
         ";
 
         let tests = vec![
@@ -171,6 +187,23 @@ mod tests {
             Token::Gt,
             Token::Int(5),
             Token::Semicolon,
+            Token::If,
+            Token::Lparen,
+            Token::Int(5),
+            Token::Lt,
+            Token::Int(10),
+            Token::Rparen,
+            Token::Lbrace,
+            Token::Return,
+            Token::True,
+            Token::Semicolon,
+            Token::Rbrace,
+            Token::Else,
+            Token::Lbrace,
+            Token::Return,
+            Token::False,
+            Token::Semicolon,
+            Token::Rbrace,
             Token::Eof,
         ];
 
