@@ -1,12 +1,14 @@
 use std::fmt;
 
 pub enum Expression {
+    Identifier(String),
     Empty,
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
+            Expression::Identifier(s) => format!("identifier: {}", s),
             Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)

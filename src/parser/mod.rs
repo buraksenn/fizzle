@@ -1,4 +1,4 @@
-use anyhow::{Context, anyhow};
+use anyhow::anyhow;
 use log::debug;
 
 use crate::{
@@ -7,7 +7,21 @@ use crate::{
     token::Token,
 };
 
+#[derive(PartialEq, PartialOrd)]
+enum Precedence {
+    Lowest,
+    Equals,
+    LessGreater,
+    Sum,
+    Product,
+    Prefix,
+    Call,
+    Index,
+}
+
 type ParserResult<T> = anyhow::Result<T>;
+type PrefixParseFn = fn(&mut Parser<'_>) -> ParserResult<Expression>;
+type InfixParseFn = fn(&mut Parser<'_>, Expression) -> ParserResult<Expression>;
 
 pub struct Parser<'a> {
     l: Lexer<'a>,
@@ -62,10 +76,38 @@ impl<'a> Parser<'a> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
             Token::Return => self.parse_return_statement(),
-            _ => Err(anyhow!(
-                "Got not supported token in parse_statement: {:?}",
+            _ => self.parse_expression_statement(),
+        }
+    }
+
+    fn parse_expression_statement(&mut self) -> ParserResult<Statement> {
+        let exp = self.parse_expression(Precedence::Lowest)?;
+
+        if self.expect_peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(Statement::Expression { value: exp })
+    }
+
+    fn parse_expression(&mut self, _: Precedence) -> ParserResult<Expression> {
+        let left_exp: Expression;
+        if let Some(f) = self.current_prefix_fn() {
+            left_exp = f(self)?;
+        } else {
+            return Err(anyhow!(
+                "could not find prefix function for token: {:?}",
                 self.current_token
-            )),
+            ));
+        }
+
+        Ok(left_exp)
+    }
+
+    fn current_prefix_fn(&mut self) -> Option<PrefixParseFn> {
+        match self.current_token {
+            Token::Ident(_) => Some(parse_identifier),
+            _ => None,
         }
     }
 
@@ -187,5 +229,16 @@ return add(3,5);";
             }
         }
         assert_eq!(c, 3)
+    }
+}
+
+fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    if let Token::Ident(ref s) = parser.current_token {
+        Ok(Expression::Identifier(s.clone()))
+    } else {
+        Err(anyhow!(
+            "expected ident token but got: {:?}",
+            parser.current_token
+        ))
     }
 }
