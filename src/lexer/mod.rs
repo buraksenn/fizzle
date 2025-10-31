@@ -1,4 +1,5 @@
 use crate::token::Token;
+
 use std::{iter::Peekable, str::Chars};
 
 pub struct Lexer<'a> {
@@ -75,8 +76,6 @@ impl<'a> Lexer<'a> {
         }
     }
 }
-
-pub fn main() {}
 
 #[cfg(test)]
 mod tests {
