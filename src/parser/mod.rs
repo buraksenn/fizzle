@@ -61,11 +61,22 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> ParserResult<Statement> {
         match self.current_token {
             Token::Let => self.parse_let_statement(),
+            Token::Return => self.parse_return_statement(),
             _ => Err(anyhow!(
                 "Got not supported token in parse_statement: {:?}",
                 self.current_token
             )),
         }
+    }
+
+    fn parse_return_statement(&mut self) -> ParserResult<Statement> {
+        while !self.expect_current_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Ok(Statement::Return {
+            value: Expression::Empty,
+        })
     }
 
     fn parse_let_statement(&mut self) -> ParserResult<Statement> {
@@ -119,13 +130,16 @@ mod test {
     use super::*;
     use crate::{ast::Statement, lexer::Lexer};
 
-    #[test]
-    fn let_statement() {
-        env_logger::builder()
+    fn setup() {
+        let _ = env_logger::builder()
             .filter(None, log::LevelFilter::Debug)
             .is_test(true)
-            .try_init()
-            .unwrap();
+            .try_init();
+    }
+
+    #[test]
+    fn let_statement() {
+        setup();
 
         let input = "\
 let x = 5;
@@ -147,5 +161,31 @@ let foobar = 838383;";
                 _ => panic!("unknown node"),
             }
         }
+    }
+
+    #[test]
+    fn return_statement() {
+        setup();
+
+        let input = "\
+return 5;
+return 10;
+return add(3,5);";
+
+        let lexer = Lexer::new(input);
+        let prog = Parser::new(lexer).parse().unwrap();
+
+        let mut itr = prog.statements.iter();
+
+        let mut c = 0;
+        while let Some(st) = itr.next() {
+            match st {
+                Statement::Return { .. } => {
+                    c += 1;
+                }
+                _ => panic!("unknown node"),
+            }
+        }
+        assert_eq!(c, 3)
     }
 }
