@@ -1,4 +1,4 @@
-use anyhow::anyhow;
+use anyhow::{Context, anyhow};
 use log::debug;
 
 use crate::{
@@ -39,13 +39,22 @@ impl<'a> Parser<'a> {
 
     fn parse(&mut self) -> ParserResult<Program> {
         let mut program = Program::default();
+        let mut parse_error: Option<anyhow::Error> = None;
 
         while self.current_token != Token::Eof {
-            let statement = self.parse_statement()?;
-            program.statements.push(statement);
+            match self.parse_statement() {
+                Ok(statement) => program.statements.push(statement),
+                Err(e) => match parse_error.take() {
+                    Some(old) => parse_error = Some(old.context(e)),
+                    None => parse_error = Some(e),
+                },
+            };
             self.next_token();
         }
 
+        if let Some(err) = parse_error {
+            return Err(err);
+        }
         Ok(program)
     }
 
