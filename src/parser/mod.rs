@@ -107,6 +107,7 @@ impl<'a> Parser<'a> {
     fn current_prefix_fn(&mut self) -> Option<PrefixParseFn> {
         match self.current_token {
             Token::Ident(_) => Some(parse_identifier),
+            Token::Int(_) => Some(parse_integer_literal),
             _ => None,
         }
     }
@@ -170,6 +171,17 @@ impl<'a> Parser<'a> {
 fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     if let Token::Ident(ref s) = parser.current_token {
         Ok(Expression::Identifier(s.clone()))
+    } else {
+        Err(anyhow!(
+            "expected ident token but got: {:?}",
+            parser.current_token
+        ))
+    }
+}
+
+fn parse_integer_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    if let Token::Int(i) = parser.current_token {
+        Ok(Expression::IntegerLiteral(i))
     } else {
         Err(anyhow!(
             "expected ident token but got: {:?}",

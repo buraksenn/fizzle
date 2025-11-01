@@ -2,6 +2,7 @@ use std::fmt;
 
 pub enum Expression {
     Identifier(String),
+    IntegerLiteral(i32),
     Empty,
 }
 
@@ -9,6 +10,7 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Expression::Identifier(s) => format!("identifier: {}", s),
+            Expression::IntegerLiteral(i) => format!("interger literal: {}", i),
             Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)
