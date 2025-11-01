@@ -195,24 +195,35 @@ mod test {
     use super::*;
     use crate::{ast::Statement, lexer::Lexer};
 
-    fn setup() {
+    fn setup(input: &str, stmt_count: usize) -> Program {
         let _ = env_logger::builder()
             .filter(None, log::LevelFilter::Debug)
             .is_test(true)
             .try_init();
+
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let prog = p.parse().unwrap();
+
+        if stmt_count != 0 && prog.statements.len() != stmt_count {
+            panic!(
+                "expected 1 statement for '{}' but got {:?}",
+                input, prog.statements
+            )
+        }
+
+        prog
     }
 
     #[test]
     fn let_statement() {
-        setup();
-
-        let input = "\
+        let prog = setup(
+            "\
 let x = 5;
 let y = 10;
-let foobar = 838383;";
-
-        let lexer = Lexer::new(input);
-        let prog = Parser::new(lexer).parse().unwrap();
+let foobar = 838383;",
+            3,
+        );
 
         let tests = vec!["x", "y", "foobar"];
 
@@ -230,15 +241,13 @@ let foobar = 838383;";
 
     #[test]
     fn return_statement() {
-        setup();
-
-        let input = "\
-return 5;
-return 10;
-return add(3,5);";
-
-        let lexer = Lexer::new(input);
-        let prog = Parser::new(lexer).parse().unwrap();
+        let prog = setup(
+            "\
+    return 5;
+    return 10;
+    return add(3,5);",
+            3,
+        );
 
         let mut itr = prog.statements.iter();
 
@@ -256,24 +265,30 @@ return add(3,5);";
 
     #[test]
     fn test_identifier_expression() {
-        setup();
-
-        let input = "foobar;";
-
-        let lexer = Lexer::new(input);
-        let prog = Parser::new(lexer).parse().unwrap();
-
-        assert_eq!(
-            prog.statements.len(),
-            1,
-            "program has not enough statements. got={}",
-            prog.statements.len()
-        );
+        let prog = setup("foobar;", 1);
 
         match &prog.statements[0] {
             Statement::Expression { value } => match value {
                 Expression::Identifier(ident) => {
                     assert_eq!(ident, "foobar", "ident.value not foobar. got={}", ident);
+                }
+                _ => panic!("exp not Expression::Identifier. got={}", value),
+            },
+            _ => panic!(
+                "program.statements[0] is not Statement::Expression. got={}",
+                prog.statements[0]
+            ),
+        }
+    }
+
+    #[test]
+    fn test_integer_literal() {
+        let prog = setup("5;", 1);
+
+        match &prog.statements[0] {
+            Statement::Expression { value } => match value {
+                Expression::IntegerLiteral(i) => {
+                    assert_eq!(*i, 5, "integer.value not foobar. got={}", i);
                 }
                 _ => panic!("exp not Expression::Identifier. got={}", value),
             },

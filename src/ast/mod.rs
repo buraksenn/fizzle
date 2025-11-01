@@ -1,5 +1,6 @@
 use std::fmt;
 
+#[derive(Debug)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i32),
@@ -17,6 +18,7 @@ impl fmt::Display for Expression {
     }
 }
 
+#[derive(Debug)]
 pub enum Statement {
     Let { name: String, value: Expression },
     Return { value: Expression },
