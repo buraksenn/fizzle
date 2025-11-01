@@ -241,4 +241,34 @@ return add(3,5);";
         }
         assert_eq!(c, 3)
     }
+
+    #[test]
+    fn test_identifier_expression() {
+        setup();
+
+        let input = "foobar;";
+
+        let lexer = Lexer::new(input);
+        let prog = Parser::new(lexer).parse().unwrap();
+
+        assert_eq!(
+            prog.statements.len(),
+            1,
+            "program has not enough statements. got={}",
+            prog.statements.len()
+        );
+
+        match &prog.statements[0] {
+            Statement::Expression { value } => match value {
+                Expression::Identifier(ident) => {
+                    assert_eq!(ident, "foobar", "ident.value not foobar. got={}", ident);
+                }
+                _ => panic!("exp not Expression::Identifier. got={}", value),
+            },
+            _ => panic!(
+                "program.statements[0] is not Statement::Expression. got={}",
+                prog.statements[0]
+            ),
+        }
+    }
 }
