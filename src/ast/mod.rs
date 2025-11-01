@@ -1,9 +1,15 @@
 use std::fmt;
 
+use crate::token::Token;
+
 #[derive(Debug)]
 pub enum Expression {
     Identifier(String),
-    IntegerLiteral(i32),
+    IntegerLiteral(i64),
+    Prefix {
+        operator: Token,
+        operand: Box<Expression>,
+    },
     Empty,
 }
 
@@ -11,7 +17,12 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Expression::Identifier(s) => format!("identifier: {}", s),
-            Expression::IntegerLiteral(i) => format!("interger literal: {}", i),
+            Expression::IntegerLiteral(i) => format!("integer literal: {}", i),
+            Expression::Prefix { operator, operand } => format!(
+                "prefix expression operator: {:?}, operand: {}",
+                operator,
+                operand.as_ref()
+            ),
             Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)

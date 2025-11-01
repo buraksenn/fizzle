@@ -108,6 +108,8 @@ impl<'a> Parser<'a> {
         match self.current_token {
             Token::Ident(_) => Some(parse_identifier),
             Token::Int(_) => Some(parse_integer_literal),
+            Token::Minus => Some(parse_prefix_expression),
+            Token::Bang => Some(parse_prefix_expression),
             _ => None,
         }
     }
@@ -190,6 +192,17 @@ fn parse_integer_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     }
 }
 
+fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    let tok = parser.current_token.clone();
+    parser.next_token();
+    let exp = parser.parse_expression(Precedence::Prefix)?;
+
+    Ok(Expression::Prefix {
+        operator: tok,
+        operand: Box::new(exp),
+    })
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -213,6 +226,14 @@ mod test {
         }
 
         prog
+    }
+
+    fn unwrap_first_expression_from_prog(prog: &Program) -> &Expression {
+        let s = prog.statements.first().unwrap();
+        match s {
+            Statement::Expression { value } => value,
+            x => panic!("expected expression but got: {}", x),
+        }
     }
 
     #[test]
@@ -296,6 +317,53 @@ let foobar = 838383;",
                 "program.statements[0] is not Statement::Expression. got={}",
                 prog.statements[0]
             ),
+        }
+    }
+
+    #[test]
+    fn test_prefix_expressions() {
+        struct Test<'a> {
+            input: &'a str,
+            operator: Token,
+            value: i64,
+        };
+        let tests = vec![
+            Test {
+                input: "!5;",
+                operator: Token::Bang,
+                value: 5,
+            },
+            Test {
+                input: "-15;",
+                operator: Token::Minus,
+                value: 15,
+            },
+        ];
+
+        for t in tests {
+            let prog = setup(t.input, 1);
+            let exp = unwrap_first_expression_from_prog(&prog);
+
+            match exp {
+                Expression::Prefix { operator, operand } => {
+                    assert_eq!(
+                        t.operator, *operator,
+                        "expected {:?} operator but got {:?}",
+                        t.operator, operator
+                    );
+                    test_integer_literal(operand.as_ref(), t.value);
+                }
+                e => panic!("expected prefix expression but got {:?}", e),
+            }
+        }
+
+        fn test_integer_literal(exp: &Expression, value: i64) {
+            match exp {
+                Expression::IntegerLiteral(int) => {
+                    assert_eq!(value, *int, "expected {} but got {}", value, int)
+                }
+                _ => panic!("expected integer literal {} but got {:?}", value, exp),
+            }
         }
     }
 }
