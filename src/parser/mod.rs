@@ -167,6 +167,17 @@ impl<'a> Parser<'a> {
     }
 }
 
+fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    if let Token::Ident(ref s) = parser.current_token {
+        Ok(Expression::Identifier(s.clone()))
+    } else {
+        Err(anyhow!(
+            "expected ident token but got: {:?}",
+            parser.current_token
+        ))
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -229,16 +240,5 @@ return add(3,5);";
             }
         }
         assert_eq!(c, 3)
-    }
-}
-
-fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
-    if let Token::Ident(ref s) = parser.current_token {
-        Ok(Expression::Identifier(s.clone()))
-    } else {
-        Err(anyhow!(
-            "expected ident token but got: {:?}",
-            parser.current_token
-        ))
     }
 }
