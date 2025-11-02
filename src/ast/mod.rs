@@ -10,6 +10,11 @@ pub enum Expression {
         operator: Token,
         operand: Box<Expression>,
     },
+    Infix {
+        left: Box<Expression>,
+        operator: Token,
+        right: Box<Expression>,
+    },
     Empty,
 }
 
@@ -22,6 +27,16 @@ impl fmt::Display for Expression {
                 "prefix expression operator: {:?}, operand: {}",
                 operator,
                 operand.as_ref()
+            ),
+            Expression::Infix {
+                left,
+                operator,
+                right,
+            } => format!(
+                "infix expression left: {}, operator: {:?}, right: {}",
+                left.as_ref(),
+                operator,
+                right.as_ref(),
             ),
             Expression::Empty => format!("nothing yet"),
         };

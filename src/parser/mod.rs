@@ -1,23 +1,13 @@
-use anyhow::anyhow;
-use log::debug;
-
 use crate::{
     ast::{Expression, Program, Statement},
     lexer::Lexer,
+    parser::precedence::Precedence,
     token::Token,
 };
+use anyhow::anyhow;
+use log::debug;
 
-#[derive(PartialEq, PartialOrd)]
-enum Precedence {
-    Lowest,
-    Equals,
-    LessGreater,
-    Sum,
-    Product,
-    Prefix,
-    Call,
-    Index,
-}
+mod precedence;
 
 type ParserResult<T> = anyhow::Result<T>;
 type PrefixParseFn = fn(&mut Parser<'_>) -> ParserResult<Expression>;
@@ -90,10 +80,10 @@ impl<'a> Parser<'a> {
         Ok(Statement::Expression { value: exp })
     }
 
-    fn parse_expression(&mut self, _: Precedence) -> ParserResult<Expression> {
-        let left_exp: Expression;
-        if let Some(f) = self.current_prefix_fn() {
-            left_exp = f(self)?;
+    fn parse_expression(&mut self, precedence: Precedence) -> ParserResult<Expression> {
+        let mut left_exp: Expression;
+        if let Some(prefix) = self.current_prefix_fn() {
+            left_exp = prefix(self)?;
         } else {
             return Err(anyhow!(
                 "could not find prefix function for token: {:?}",
@@ -101,15 +91,38 @@ impl<'a> Parser<'a> {
             ));
         }
 
+        if !self.expect_peek_token_is(&Token::Semicolon) && precedence < self.peek_precendence() {
+            if let Some(infix) = self.current_infix_fn() {
+                left_exp = infix(self, left_exp)?;
+            } else {
+                return Ok(left_exp);
+            }
+
+            self.next_token();
+        }
+
         Ok(left_exp)
+    }
+
+    fn current_infix_fn(&mut self) -> Option<InfixParseFn> {
+        match self.current_token {
+            Token::Plus
+            | Token::Minus
+            | Token::Slash
+            | Token::Asterisk
+            | Token::Eq
+            | Token::Neq
+            | Token::Lt
+            | Token::Gt => Some(parse_infix_expression),
+            _ => None,
+        }
     }
 
     fn current_prefix_fn(&mut self) -> Option<PrefixParseFn> {
         match self.current_token {
             Token::Ident(_) => Some(parse_identifier),
             Token::Int(_) => Some(parse_integer_literal),
-            Token::Minus => Some(parse_prefix_expression),
-            Token::Bang => Some(parse_prefix_expression),
+            Token::Minus | Token::Bang => Some(parse_prefix_expression),
             _ => None,
         }
     }
@@ -168,6 +181,14 @@ impl<'a> Parser<'a> {
     fn expect_peek_token_is(&self, tok: &Token) -> bool {
         return self.peek_token == *tok;
     }
+
+    fn peek_precendence(&self) -> Precedence {
+        Precedence::from_token(&self.peek_token)
+    }
+
+    fn current_precendence(&self) -> Precedence {
+        Precedence::from_token(&self.current_token)
+    }
 }
 
 fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
@@ -200,6 +221,18 @@ fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> 
     Ok(Expression::Prefix {
         operator: tok,
         operand: Box::new(exp),
+    })
+}
+
+fn parse_infix_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
+    let tok = parser.current_token.clone();
+    parser.next_token();
+    let right = parser.parse_expression(Precedence::from_token(&tok))?;
+
+    Ok(Expression::Infix {
+        left: Box::new(left),
+        operator: tok,
+        right: Box::new(right),
     })
 }
 
