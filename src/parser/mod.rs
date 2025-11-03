@@ -82,6 +82,7 @@ impl<'a> Parser<'a> {
 
     fn parse_expression(&mut self, precedence: Precedence) -> ParserResult<Expression> {
         let mut left_exp: Expression;
+
         if let Some(prefix) = self.current_prefix_fn() {
             left_exp = prefix(self)?;
         } else {
@@ -91,21 +92,21 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        if !self.expect_peek_token_is(&Token::Semicolon) && precedence < self.peek_precendence() {
-            if let Some(infix) = self.current_infix_fn() {
+        while !self.expect_peek_token_is(&Token::Semicolon) && precedence < self.peek_precendence()
+        {
+            if let Some(infix) = self.peek_infix_fn() {
+                self.next_token();
                 left_exp = infix(self, left_exp)?;
             } else {
                 return Ok(left_exp);
             }
-
-            self.next_token();
         }
 
         Ok(left_exp)
     }
 
-    fn current_infix_fn(&mut self) -> Option<InfixParseFn> {
-        match self.current_token {
+    fn peek_infix_fn(&mut self) -> Option<InfixParseFn> {
+        match self.peek_token {
             Token::Plus
             | Token::Minus
             | Token::Slash
@@ -226,8 +227,11 @@ fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> 
 
 fn parse_infix_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
     let tok = parser.current_token.clone();
+    let precedence = parser.current_precendence();
+
     parser.next_token();
-    let right = parser.parse_expression(Precedence::from_token(&tok))?;
+
+    let right = parser.parse_expression(precedence)?;
 
     Ok(Expression::Infix {
         left: Box::new(left),
@@ -266,6 +270,15 @@ mod test {
         match s {
             Statement::Expression { value } => value,
             x => panic!("expected expression but got: {}", x),
+        }
+    }
+
+    fn test_integer_literal(exp: &Expression, value: i64) {
+        match exp {
+            Expression::IntegerLiteral(int) => {
+                assert_eq!(value, *int, "expected {} but got {}", value, int)
+            }
+            _ => panic!("expected integer literal {} but got {:?}", value, exp),
         }
     }
 
@@ -336,7 +349,7 @@ let foobar = 838383;",
     }
 
     #[test]
-    fn test_integer_literal() {
+    fn test_integer_literals() {
         let prog = setup("5;", 1);
 
         match &prog.statements[0] {
@@ -389,13 +402,87 @@ let foobar = 838383;",
                 e => panic!("expected prefix expression but got {:?}", e),
             }
         }
+    }
 
-        fn test_integer_literal(exp: &Expression, value: i64) {
+    #[test]
+    fn infix_expressions() {
+        struct Test<'a> {
+            input: &'a str,
+            left_value: i64,
+            operator: Token,
+            right_value: i64,
+        }
+
+        let tests = vec![
+            Test {
+                input: "5 + 5;",
+                left_value: 5,
+                operator: Token::Plus,
+                right_value: 5,
+            },
+            Test {
+                input: "5 - 5;",
+                left_value: 5,
+                operator: Token::Minus,
+                right_value: 5,
+            },
+            Test {
+                input: "5 * 5;",
+                left_value: 5,
+                operator: Token::Asterisk,
+                right_value: 5,
+            },
+            Test {
+                input: "5 / 5;",
+                left_value: 5,
+                operator: Token::Slash,
+                right_value: 5,
+            },
+            Test {
+                input: "5 > 5;",
+                left_value: 5,
+                operator: Token::Gt,
+                right_value: 5,
+            },
+            Test {
+                input: "5 < 5;",
+                left_value: 5,
+                operator: Token::Lt,
+                right_value: 5,
+            },
+            Test {
+                input: "5 == 5;",
+                left_value: 5,
+                operator: Token::Eq,
+                right_value: 5,
+            },
+            Test {
+                input: "5 != 5;",
+                left_value: 5,
+                operator: Token::Neq,
+                right_value: 5,
+            },
+        ];
+
+        for t in tests {
+            let prog = setup(t.input, 1);
+            let exp = unwrap_first_expression_from_prog(&prog);
+
             match exp {
-                Expression::IntegerLiteral(int) => {
-                    assert_eq!(value, *int, "expected {} but got {}", value, int)
+                Expression::Infix {
+                    left,
+                    operator,
+                    right,
+                } => {
+                    assert_eq!(
+                        t.operator, *operator,
+                        "expected {:?} operator but got {:?}",
+                        t.operator, operator
+                    );
+                    test_integer_literal(left, t.left_value);
+                    test_integer_literal(right, t.right_value);
                 }
-                _ => panic!("expected integer literal {} but got {:?}", value, exp),
+                exp => panic!("expected prefix expression but got {:?}", exp),
             }
         }
     }
