@@ -125,6 +125,7 @@ impl<'a> Parser<'a> {
             Token::Int(_) => Some(parse_integer_literal),
             Token::True | Token::False => Some(parse_boolean_expression),
             Token::Minus | Token::Bang => Some(parse_prefix_expression),
+            Token::Lparen => Some(parse_grouped_expression),
             _ => None,
         }
     }
@@ -213,6 +214,16 @@ fn parse_integer_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
             parser.current_token
         ))
     }
+}
+
+fn parse_grouped_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    parser.next_token();
+
+    let exp = parser.parse_expression(Precedence::Lowest)?;
+
+    parser.expect_peek(Token::Rparen)?;
+
+    Ok(exp)
 }
 
 fn parse_boolean_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
@@ -585,6 +596,26 @@ mod test {
             Test {
                 input: "3 < 5 == true",
                 expected: "((3 < 5) == true)",
+            },
+            Test {
+                input: "1 + (2 + 3) + 4",
+                expected: "((1 + (2 + 3)) + 4)",
+            },
+            Test {
+                input: "(5 + 5) * 2",
+                expected: "((5 + 5) * 2)",
+            },
+            Test {
+                input: "2 / (5 + 5)",
+                expected: "(2 / (5 + 5))",
+            },
+            Test {
+                input: "-(5 + 5)",
+                expected: "(-(5 + 5))",
+            },
+            Test {
+                input: "!(true == true)",
+                expected: "(!(true == true))",
             },
         ];
 
