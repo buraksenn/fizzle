@@ -1,5 +1,5 @@
 use crate::{
-    ast::{Expression, Program, Statement},
+    ast::{BlockStatement, Expression, IfExpression, Program, Statement},
     lexer::Lexer,
     parser::precedence::Precedence,
     token::Token,
@@ -47,7 +47,7 @@ impl<'a> Parser<'a> {
 
         while self.current_token != Token::Eof {
             match self.parse_statement() {
-                Ok(statement) => program.statements.push(statement),
+                Ok(st) => program.statements.push(st),
                 Err(e) => match parse_error.take() {
                     Some(old) => parse_error = Some(old.context(e)),
                     None => parse_error = Some(e),
@@ -126,6 +126,7 @@ impl<'a> Parser<'a> {
             Token::True | Token::False => Some(parse_boolean_expression),
             Token::Minus | Token::Bang => Some(parse_prefix_expression),
             Token::Lparen => Some(parse_grouped_expression),
+            Token::If => Some(parse_if_expression),
             _ => None,
         }
     }
@@ -226,6 +227,52 @@ fn parse_grouped_expression(parser: &mut Parser<'_>) -> ParserResult<Expression>
     Ok(exp)
 }
 
+fn parse_if_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    parser.expect_peek(Token::Lparen)?;
+    // skip lparen
+    parser.next_token();
+
+    let condition = parser.parse_expression(Precedence::Lowest)?;
+    parser.expect_peek(Token::Rparen)?;
+    parser.expect_peek(Token::Lbrace)?;
+
+    // skip lbrace
+    parser.next_token();
+    let consequence = parse_block_statement(parser)?;
+
+    let alternative = if parser.expect_peek_token_is(&Token::Else) {
+        // skip else
+        parser.next_token();
+        parser.expect_peek(Token::Lbrace)?;
+
+        // skip lbrace
+        parser.next_token();
+        Some(parse_block_statement(parser)?)
+    } else {
+        None
+    };
+
+    Ok(Expression::If(Box::new(IfExpression {
+        condition,
+        consequence,
+        alternative,
+    })))
+}
+
+fn parse_block_statement(parser: &mut Parser<'_>) -> ParserResult<BlockStatement> {
+    let mut statements: Vec<Statement> = Vec::new();
+
+    while !parser.expect_current_token_is(&Token::Eof)
+        && !parser.expect_current_token_is(&Token::Rbrace)
+    {
+        let st = parser.parse_statement()?;
+        parser.next_token();
+        statements.push(st);
+    }
+
+    Ok(BlockStatement { statements })
+}
+
 fn parse_boolean_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     match parser.current_token {
         Token::True => Ok(Expression::Boolean(true)),
@@ -266,6 +313,65 @@ fn parse_infix_expression(parser: &mut Parser<'_>, left: Expression) -> ParserRe
 mod test {
     use super::*;
     use crate::{ast::Statement, lexer::Lexer};
+
+    #[test]
+    fn if_expression() {
+        let input = "if (x < y) { x }";
+
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::If(ifexpr) => {
+                test_if_condition(&ifexpr.condition, Token::Lt, "x", "y");
+
+                assert_eq!(
+                    ifexpr.consequence.statements.len(),
+                    1,
+                    "expected only 1 statement"
+                );
+                match ifexpr.consequence.statements.first().unwrap() {
+                    Statement::Expression { value } => test_identifier(value, "x"),
+                    stmt => panic!("expected expression statement but got {:?}", stmt),
+                }
+                if let Some(stmt) = &ifexpr.alternative {
+                    panic!("expected alternative to be None but got {:?}", stmt)
+                }
+            }
+            _ => panic!("expected if expression but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn if_else_expression() {
+        let input = "if (x < y) { x } else { y }";
+
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::If(ifexpr) => {
+                test_if_condition(&ifexpr.condition, Token::Lt, "x", "y");
+
+                assert_eq!(ifexpr.consequence.statements.len(), 1);
+                match &ifexpr.consequence.statements.first().unwrap() {
+                    Statement::Expression { value } => test_identifier(value, "x"),
+                    stmt => panic!("expected expression statement but got {:?}", stmt),
+                }
+
+                if let Some(stmt) = &ifexpr.alternative {
+                    assert_eq!(stmt.statements.len(), 1);
+                    match stmt.statements.first().unwrap() {
+                        Statement::Expression { value } => test_identifier(value, "y"),
+                        stmt => panic!("expected expression statement but got {:?}", stmt),
+                    }
+                } else {
+                    panic!("expected alternative block")
+                }
+            }
+            _ => panic!("expected if expression but got {:?}", exp),
+        }
+    }
 
     #[test]
     fn test_let_statement() {
@@ -681,6 +787,32 @@ mod test {
         match s {
             Statement::Expression { value } => value,
             x => panic!("expected expression but got: {}", x),
+        }
+    }
+
+    fn test_identifier(exp: &Expression, value: &str) {
+        match exp {
+            Expression::Identifier(ident) => {
+                assert_eq!(value, ident, "expected {} but got {}", value, ident)
+            }
+            _ => panic!("expected identifier expression but got {:?}", exp),
+        }
+    }
+
+    fn test_if_condition(exp: &Expression, op: Token, l: &str, r: &str) {
+        match exp {
+            Expression::Infix {
+                left,
+                operator,
+                right,
+            } => {
+                test_identifier(&left, l);
+                test_identifier(&right, r);
+                if *operator != op {
+                    panic!("expected {} operator but got {}", operator, op)
+                }
+            }
+            _ => panic!("expected infix expression but got {:?}", exp),
         }
     }
 
