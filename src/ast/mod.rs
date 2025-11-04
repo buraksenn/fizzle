@@ -21,23 +21,16 @@ pub enum Expression {
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Expression::Identifier(s) => format!("identifier: {}", s),
-            Expression::IntegerLiteral(i) => format!("integer literal: {}", i),
-            Expression::Prefix { operator, operand } => format!(
-                "prefix expression operator: {:?}, operand: {}",
-                operator,
-                operand.as_ref()
-            ),
+            Expression::Identifier(s) => format!("{}", s),
+            Expression::IntegerLiteral(i) => format!("{}", i),
+            Expression::Prefix { operator, operand } => {
+                format!("({}{})", operator, operand.as_ref())
+            }
             Expression::Infix {
                 left,
                 operator,
                 right,
-            } => format!(
-                "infix expression left: {}, operator: {:?}, right: {}",
-                left.as_ref(),
-                operator,
-                right.as_ref(),
-            ),
+            } => format!("({} {} {})", left.as_ref(), operator, right.as_ref(),),
             Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)
@@ -54,9 +47,9 @@ pub enum Statement {
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Statement::Let { name, value } => format!("name: {} value: {}", name, value),
-            Statement::Return { value } => format!("return value: {}", value),
-            Statement::Expression { value } => format!("expression: {}", value),
+            Statement::Let { name, value } => format!("let {} = {};", name, value),
+            Statement::Return { value } => format!("return {};", value),
+            Statement::Expression { value } => format!("{}", value),
         };
         write!(f, "{}", s)
     }

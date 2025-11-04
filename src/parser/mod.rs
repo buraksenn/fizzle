@@ -36,7 +36,7 @@ impl<'a> Parser<'a> {
         self.current_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
 
         debug!(
-            "Got next_token, current_token: {:?} peek_token: {:?} from next_token call",
+            "Got next_token, current_token: {} peek_token: {} from next_token call",
             self.current_token, self.peek_token
         );
     }
@@ -87,7 +87,7 @@ impl<'a> Parser<'a> {
             left_exp = prefix(self)?;
         } else {
             return Err(anyhow!(
-                "could not find prefix function for token: {:?}",
+                "could not find prefix function for token: {}",
                 self.current_token
             ));
         }
@@ -158,7 +158,7 @@ impl<'a> Parser<'a> {
             return Ok(());
         } else {
             Err(anyhow!(
-                "expected token {:?} but received: {:?}",
+                "expected token {} but received: {}",
                 tok,
                 self.peek_token
             ))
@@ -168,7 +168,7 @@ impl<'a> Parser<'a> {
     fn expect_ident(&mut self) -> ParserResult<String> {
         let name = match &self.peek_token {
             Token::Ident(name) => name.to_string(),
-            tok => return Err(anyhow!("expected ident token but received: {:?}", tok)),
+            tok => return Err(anyhow!("expected ident token but received: {}", tok)),
         };
         self.next_token();
 
@@ -197,7 +197,7 @@ fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
         Ok(Expression::Identifier(s.clone()))
     } else {
         Err(anyhow!(
-            "expected ident token but got: {:?}",
+            "expected ident token but got: {}",
             parser.current_token
         ))
     }
@@ -208,7 +208,7 @@ fn parse_integer_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
         Ok(Expression::IntegerLiteral(i))
     } else {
         Err(anyhow!(
-            "expected ident token but got: {:?}",
+            "expected ident token but got: {}",
             parser.current_token
         ))
     }
