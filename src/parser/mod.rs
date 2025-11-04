@@ -486,4 +486,73 @@ let foobar = 838383;",
             }
         }
     }
+
+    #[test]
+    fn test_operator_precedence() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: &'a str,
+        }
+
+        let tests = vec![
+            Test {
+                input: "-a * b",
+                expected: "((-a) * b)",
+            },
+            Test {
+                input: "!-a",
+                expected: "(!(-a))",
+            },
+            Test {
+                input: "a + b + c",
+                expected: "((a + b) + c)",
+            },
+            Test {
+                input: "a + b - c",
+                expected: "((a + b) - c)",
+            },
+            Test {
+                input: "a * b * c",
+                expected: "((a * b) * c)",
+            },
+            Test {
+                input: "a * b / c",
+                expected: "((a * b) / c)",
+            },
+            Test {
+                input: "a + b / c",
+                expected: "(a + (b / c))",
+            },
+            Test {
+                input: "a + b * c + d / e - f",
+                expected: "(((a + (b * c)) + (d / e)) - f)",
+            },
+            Test {
+                input: "3 + 4; -5 * 5",
+                expected: "(3 + 4)((-5) * 5)",
+            },
+            Test {
+                input: "5 > 4 == 3 < 4",
+                expected: "((5 > 4) == (3 < 4))",
+            },
+            Test {
+                input: "5 < 4 != 3 > 4",
+                expected: "((5 < 4) != (3 > 4))",
+            },
+            Test {
+                input: "3 + 4 * 5 == 3 * 1 + 4 * 5",
+                expected: "((3 + (4 * 5)) == ((3 * 1) + (4 * 5)))",
+            },
+        ];
+
+        for t in tests {
+            let prog = setup(t.input, 0).to_string();
+
+            assert_eq!(
+                t.expected, prog,
+                "expected '{}' but got '{}'",
+                t.expected, prog
+            )
+        }
+    }
 }
