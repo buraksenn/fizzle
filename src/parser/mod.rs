@@ -245,50 +245,13 @@ mod test {
     use super::*;
     use crate::{ast::Statement, lexer::Lexer};
 
-    fn setup(input: &str, stmt_count: usize) -> Program {
-        let _ = env_logger::builder()
-            .filter(None, log::LevelFilter::Debug)
-            .is_test(true)
-            .try_init();
-
-        let l = Lexer::new(input);
-        let mut p = Parser::new(l);
-        let prog = p.parse().unwrap();
-
-        if stmt_count != 0 && prog.statements.len() != stmt_count {
-            panic!(
-                "expected 1 statement for '{}' but got {:?}",
-                input, prog.statements
-            )
-        }
-
-        prog
-    }
-
-    fn unwrap_first_expression_from_prog(prog: &Program) -> &Expression {
-        let s = prog.statements.first().unwrap();
-        match s {
-            Statement::Expression { value } => value,
-            x => panic!("expected expression but got: {}", x),
-        }
-    }
-
-    fn test_integer_literal(exp: &Expression, value: i64) {
-        match exp {
-            Expression::IntegerLiteral(int) => {
-                assert_eq!(value, *int, "expected {} but got {}", value, int)
-            }
-            _ => panic!("expected integer literal {} but got {:?}", value, exp),
-        }
-    }
-
     #[test]
-    fn let_statement() {
+    fn test_let_statement() {
         let prog = setup(
             "\
-let x = 5;
-let y = 10;
-let foobar = 838383;",
+            let x = 5;
+            let y = 10;
+            let foobar = 838383;",
             3,
         );
 
@@ -307,12 +270,12 @@ let foobar = 838383;",
     }
 
     #[test]
-    fn return_statement() {
+    fn test_return_statement() {
         let prog = setup(
             "\
-    return 5;
-    return 10;
-    return add(3,5);",
+            return 5;
+            return 10;
+            return add(3,5);",
             3,
         );
 
@@ -476,7 +439,7 @@ let foobar = 838383;",
                 } => {
                     assert_eq!(
                         t.operator, *operator,
-                        "expected {:?} operator but got {:?}",
+                        "expected {} operator but got {}",
                         t.operator, operator
                     );
                     test_integer_literal(left, t.left_value);
@@ -553,6 +516,43 @@ let foobar = 838383;",
                 "expected '{}' but got '{}'",
                 t.expected, prog
             )
+        }
+    }
+
+    fn setup(input: &str, stmt_count: usize) -> Program {
+        let _ = env_logger::builder()
+            .filter(None, log::LevelFilter::Debug)
+            .is_test(true)
+            .try_init();
+
+        let l = Lexer::new(input);
+        let mut p = Parser::new(l);
+        let prog = p.parse().unwrap();
+
+        if stmt_count != 0 && prog.statements.len() != stmt_count {
+            panic!(
+                "expected 1 statement for '{}' but got {:?}",
+                input, prog.statements
+            )
+        }
+
+        prog
+    }
+
+    fn unwrap_first_expression_from_prog(prog: &Program) -> &Expression {
+        let s = prog.statements.first().unwrap();
+        match s {
+            Statement::Expression { value } => value,
+            x => panic!("expected expression but got: {}", x),
+        }
+    }
+
+    fn test_integer_literal(exp: &Expression, value: i64) {
+        match exp {
+            Expression::IntegerLiteral(int) => {
+                assert_eq!(value, *int, "expected {} but got {}", value, int)
+            }
+            _ => panic!("expected integer literal {} but got {:?}", value, exp),
         }
     }
 }
