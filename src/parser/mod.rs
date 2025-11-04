@@ -227,6 +227,7 @@ fn parse_grouped_expression(parser: &mut Parser<'_>) -> ParserResult<Expression>
     Ok(exp)
 }
 
+// TODO: add capability for `else if`
 fn parse_if_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     parser.expect_peek(Token::Lparen)?;
     // skip lparen
