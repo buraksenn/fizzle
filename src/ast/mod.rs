@@ -15,6 +15,7 @@ pub enum Expression {
         operator: Token,
         right: Box<Expression>,
     },
+    Boolean(bool),
     Empty,
 }
 
@@ -26,6 +27,7 @@ impl fmt::Display for Expression {
             Expression::Prefix { operator, operand } => {
                 format!("({}{})", operator, operand.as_ref())
             }
+            Expression::Boolean(val) => format!("{}", val),
             Expression::Infix {
                 left,
                 operator,
