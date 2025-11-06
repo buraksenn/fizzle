@@ -845,6 +845,46 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_function_parameters() {
+        struct Test<'a> {
+            input: &'a str,
+            expected_params: Vec<&'a str>,
+        }
+
+        let tests = vec![
+            Test {
+                input: "fn() {};",
+                expected_params: vec![],
+            },
+            Test {
+                input: "fn(x) {};",
+                expected_params: vec!["x"],
+            },
+            Test {
+                input: "fn(x, y, z) {};",
+                expected_params: vec!["x", "y", "z"],
+            },
+        ];
+
+        for t in tests {
+            let prog = setup(t.input, 1);
+            let exp = unwrap_first_expression_from_prog(&prog);
+
+            match exp {
+                Expression::Function(func) => {
+                    assert_eq!(func.parameters.len(), t.expected_params.len());
+                    let mut params = t.expected_params.into_iter();
+                    for param in &func.parameters {
+                        let expected_param = params.next().unwrap();
+                        assert_eq!(expected_param, param);
+                    }
+                }
+                _ => panic!("{:?} not a function literal", exp),
+            }
+        }
+    }
+
     fn setup(input: &str, stmt_count: usize) -> Program {
         let _ = env_logger::builder()
             .filter(None, log::LevelFilter::Debug)
