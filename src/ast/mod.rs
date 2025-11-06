@@ -16,6 +16,7 @@ pub enum Expression {
         right: Box<Expression>,
     },
     If(Box<IfExpression>),
+    Function(Box<FunctionExpression>),
     Boolean(bool),
     Empty,
 }
@@ -35,9 +36,26 @@ impl fmt::Display for Expression {
                 right,
             } => format!("({} {} {})", left.as_ref(), operator, right.as_ref(),),
             Expression::If(exp) => exp.to_string(),
+            Expression::Function(f) => f.to_string(),
             Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)
+    }
+}
+
+#[derive(Debug)]
+pub struct FunctionExpression {
+    pub parameters: Vec<String>,
+    pub body: BlockStatement,
+}
+
+impl fmt::Display for FunctionExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let parameters: Vec<String> = (&self.parameters)
+            .into_iter()
+            .map(|pm| pm.to_string())
+            .collect();
+        write!(f, "fn {} {}", parameters.join(""), self.body)
     }
 }
 

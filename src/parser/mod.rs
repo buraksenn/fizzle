@@ -1,11 +1,10 @@
 use crate::{
-    ast::{BlockStatement, Expression, IfExpression, Program, Statement},
+    ast::{BlockStatement, Expression, FunctionExpression, IfExpression, Program, Statement},
     lexer::Lexer,
     parser::precedence::Precedence,
     token::Token,
 };
 use anyhow::anyhow;
-use log::debug;
 
 mod precedence;
 
@@ -34,11 +33,6 @@ impl<'a> Parser<'a> {
 
     fn next_token(&mut self) {
         self.current_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
-
-        debug!(
-            "Got next_token, current_token: {} peek_token: {} from next_token call",
-            self.current_token, self.peek_token
-        );
     }
 
     fn parse(&mut self) -> ParserResult<Program> {
@@ -127,6 +121,7 @@ impl<'a> Parser<'a> {
             Token::Minus | Token::Bang => Some(parse_prefix_expression),
             Token::Lparen => Some(parse_grouped_expression),
             Token::If => Some(parse_if_expression),
+            Token::Function => Some(parse_function_expression),
             _ => None,
         }
     }
@@ -206,6 +201,14 @@ fn parse_identifier(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     }
 }
 
+fn get_string_from_token(tok: &Token) -> ParserResult<String> {
+    if let &Token::Ident(ref s) = tok {
+        Ok(s.clone())
+    } else {
+        Err(anyhow!("expected ident token but got: {}", tok))
+    }
+}
+
 fn parse_integer_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     if let Token::Int(i) = parser.current_token {
         Ok(Expression::IntegerLiteral(i))
@@ -225,6 +228,42 @@ fn parse_grouped_expression(parser: &mut Parser<'_>) -> ParserResult<Expression>
     parser.expect_peek(Token::Rparen)?;
 
     Ok(exp)
+}
+
+fn parse_function_parameters(parser: &mut Parser<'_>) -> ParserResult<Vec<String>> {
+    let mut parameters: Vec<String> = Vec::new();
+    if parser.expect_peek_token_is(&Token::Rparen) {
+        parser.next_token();
+        return Ok(parameters);
+    }
+    parser.next_token();
+
+    parameters.push(get_string_from_token(&parser.current_token)?);
+
+    while parser.expect_peek_token_is(&Token::Comma) {
+        parser.next_token();
+        parser.next_token();
+        parameters.push(get_string_from_token(&parser.current_token)?);
+    }
+    parser.expect_peek(Token::Rparen)?;
+
+    Ok(parameters)
+}
+
+fn parse_function_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    parser.expect_peek(Token::Lparen)?;
+
+    let parameters = parse_function_parameters(parser)?;
+    parser.expect_peek(Token::Lbrace)?;
+
+    // skip lbrace
+    parser.next_token();
+    let body = parse_block_statement(parser)?;
+
+    Ok(Expression::Function(Box::new(FunctionExpression {
+        parameters,
+        body,
+    })))
 }
 
 // TODO: add capability for `else if`
@@ -760,6 +799,49 @@ mod test {
             let exp = unwrap_first_expression_from_prog(&prog);
 
             test_boolean_literal(&exp, t.expected);
+        }
+    }
+
+    #[test]
+    fn test_function_literal() {
+        let input = "fn(x, y) { x + y; }";
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::Function(func) => {
+                assert_eq!(
+                    2,
+                    func.parameters.len(),
+                    "expected 2 parameters but got {:?}",
+                    func.parameters
+                );
+                assert_eq!(func.parameters.first().unwrap(), "x");
+                assert_eq!(func.parameters.last().unwrap(), "y");
+                assert_eq!(
+                    1,
+                    func.body.statements.len(),
+                    "expecte 1 body statement but got {:?}",
+                    func.body.statements
+                );
+
+                match func.body.statements.first().unwrap() {
+                    Statement::Expression { value } => match value {
+                        Expression::Infix {
+                            left,
+                            operator,
+                            right,
+                        } => {
+                            assert_eq!(*operator, Token::Plus, "expected + but got {}", operator);
+                            test_identifier(left.as_ref(), "x");
+                            test_identifier(right.as_ref(), "y");
+                        }
+                        _ => panic!("expected infix expression but got {:?}", value),
+                    },
+                    stmt => panic!("expected expression statement but got {:?}", stmt),
+                }
+            }
+            _ => panic!("{} is not a function literal", exp),
         }
     }
 
