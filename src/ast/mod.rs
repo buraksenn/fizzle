@@ -17,6 +17,7 @@ pub enum Expression {
     },
     If(Box<IfExpression>),
     Function(Box<FunctionExpression>),
+    Call(Box<CallExpression>),
     Boolean(bool),
     Empty,
 }
@@ -37,6 +38,7 @@ impl fmt::Display for Expression {
             } => format!("({} {} {})", left.as_ref(), operator, right.as_ref(),),
             Expression::If(exp) => exp.to_string(),
             Expression::Function(f) => f.to_string(),
+            Expression::Call(c) => c.to_string(),
             Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)
@@ -55,7 +57,23 @@ impl fmt::Display for FunctionExpression {
             .into_iter()
             .map(|pm| pm.to_string())
             .collect();
-        write!(f, "fn {} {}", parameters.join(""), self.body)
+        write!(f, "fn({}) {{ {} }}", parameters.join(","), self.body)
+    }
+}
+
+#[derive(Debug)]
+pub struct CallExpression {
+    pub function: Expression,
+    pub arguments: Vec<Expression>,
+}
+
+impl fmt::Display for CallExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let args: Vec<String> = (&self.arguments)
+            .into_iter()
+            .map(|pm| pm.to_string())
+            .collect();
+        write!(f, "{}({})", self.function, args.join(","))
     }
 }
 

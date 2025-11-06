@@ -1,5 +1,8 @@
 use crate::{
-    ast::{BlockStatement, Expression, FunctionExpression, IfExpression, Program, Statement},
+    ast::{
+        BlockStatement, CallExpression, Expression, FunctionExpression, IfExpression, Program,
+        Statement,
+    },
     lexer::Lexer,
     parser::precedence::Precedence,
     token::Token,
@@ -109,6 +112,7 @@ impl<'a> Parser<'a> {
             | Token::Neq
             | Token::Lt
             | Token::Gt => Some(parse_infix_expression),
+            Token::Lparen => Some(parse_call_expression),
             _ => None,
         }
     }
@@ -334,6 +338,32 @@ fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> 
     })
 }
 
+fn parse_call_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
+    Ok(Expression::Call(Box::new(CallExpression {
+        function: left,
+        arguments: parse_call_arguments(parser)?,
+    })))
+}
+
+fn parse_call_arguments(parser: &mut Parser<'_>) -> ParserResult<Vec<Expression>> {
+    let mut arguments: Vec<Expression> = Vec::new();
+
+    if parser.expect_peek_token_is(&Token::Rparen) {
+        parser.next_token();
+        return Ok(arguments);
+    }
+    parser.next_token();
+
+    arguments.push(parser.parse_expression(Precedence::Lowest)?);
+
+    while parser.expect_peek_token_is(&Token::Comma) {
+        parser.next_token();
+        parser.next_token();
+        arguments.push(parser.parse_expression(Precedence::Lowest)?);
+    }
+
+    Ok(arguments)
+}
 fn parse_infix_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
     let tok = parser.current_token.clone();
     let precedence = parser.current_precendence();
