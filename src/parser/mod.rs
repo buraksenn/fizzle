@@ -130,14 +130,25 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn parse_return_statement(&mut self) -> ParserResult<Statement> {
-        while !self.expect_current_token_is(Token::Semicolon) {
-            self.next_token();
-        }
+    fn parse_let_statement(&mut self) -> ParserResult<Statement> {
+        let name = self.expect_ident()?;
+        self.expect_peek(Token::Assign)?;
+        self.next_token();
 
-        Ok(Statement::Return {
-            value: Expression::Empty,
-        })
+        let exp = self.parse_expression(Precedence::Lowest)?;
+
+        self.expect_peek(Token::Semicolon)?;
+
+        Ok(Statement::Let { name, value: exp })
+    }
+
+    fn parse_return_statement(&mut self) -> ParserResult<Statement> {
+        self.next_token();
+        let value = self.parse_expression(Precedence::Lowest)?;
+
+        self.expect_peek(Token::Semicolon)?;
+
+        Ok(Statement::Return { value })
     }
 
     fn parse_expression_list(&mut self, end: Token) -> ParserResult<Vec<Expression>> {
@@ -160,20 +171,6 @@ impl<'a> Parser<'a> {
         self.expect_peek(end)?;
 
         Ok(list)
-    }
-
-    fn parse_let_statement(&mut self) -> ParserResult<Statement> {
-        let name = self.expect_ident()?;
-        self.expect_peek(Token::Assign)?;
-
-        while !self.expect_current_token_is(Token::Semicolon) {
-            self.next_token();
-        }
-
-        Ok(Statement::Let {
-            name,
-            value: Expression::Empty,
-        })
     }
 
     fn expect_peek(&mut self, tok: Token) -> ParserResult<()> {
@@ -468,14 +465,16 @@ mod test {
             3,
         );
 
-        let tests = vec!["x", "y", "foobar"];
+        let identifiers = vec!["x", "y", "foobar"];
+        let integers = vec![5, 10, 838383];
 
         let mut itr = prog.statements.iter();
 
-        for t in tests {
+        for (t, i) in identifiers.iter().zip(integers) {
             match itr.next().unwrap() {
-                Statement::Let { name, .. } => {
+                Statement::Let { name, value } => {
                     assert_eq!(name, t);
+                    test_integer_literal(value, i);
                 }
                 _ => panic!("unknown node"),
             }
@@ -492,18 +491,52 @@ mod test {
             3,
         );
 
-        let mut itr = prog.statements.iter();
+        assert_eq!(prog.statements.len(), 3);
 
-        let mut c = 0;
-        while let Some(st) = itr.next() {
-            match st {
-                Statement::Return { .. } => {
-                    c += 1;
-                }
-                _ => panic!("unknown node"),
-            }
+        // Check first return statement: return 5;
+        match &prog.statements[0] {
+            Statement::Return { value } => match value {
+                Expression::IntegerLiteral(val) => assert_eq!(*val, 5),
+                _ => panic!("expected IntegerLiteral(5)"),
+            },
+            _ => panic!("expected Return statement"),
         }
-        assert_eq!(c, 3)
+
+        // Check second return statement: return 10;
+        match &prog.statements[1] {
+            Statement::Return { value } => match value {
+                Expression::IntegerLiteral(val) => assert_eq!(*val, 10),
+                _ => panic!("expected IntegerLiteral(10)"),
+            },
+            _ => panic!("expected Return statement"),
+        }
+
+        // Check third return statement: return add(3,5);
+        match &prog.statements[2] {
+            Statement::Return { value } => {
+                match value {
+                    Expression::Call(call_expr) => {
+                        // Check function name
+                        match &call_expr.function {
+                            Expression::Identifier(name) => assert_eq!(name, "add"),
+                            _ => panic!("expected Identifier 'add'"),
+                        }
+                        // Check arguments
+                        assert_eq!(call_expr.arguments.len(), 2);
+                        match &call_expr.arguments[0] {
+                            Expression::IntegerLiteral(val) => assert_eq!(*val, 3),
+                            _ => panic!("expected IntegerLiteral(3)"),
+                        }
+                        match &call_expr.arguments[1] {
+                            Expression::IntegerLiteral(val) => assert_eq!(*val, 5),
+                            _ => panic!("expected IntegerLiteral(5)"),
+                        }
+                    }
+                    _ => panic!("expected Call expression"),
+                }
+            }
+            _ => panic!("expected Return statement"),
+        }
     }
 
     #[test]

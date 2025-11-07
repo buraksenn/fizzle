@@ -19,7 +19,6 @@ pub enum Expression {
     Function(Box<FunctionExpression>),
     Call(Box<CallExpression>),
     Boolean(bool),
-    Empty,
 }
 
 impl fmt::Display for Expression {
@@ -39,7 +38,6 @@ impl fmt::Display for Expression {
             Expression::If(exp) => exp.to_string(),
             Expression::Function(f) => f.to_string(),
             Expression::Call(c) => c.to_string(),
-            Expression::Empty => format!("nothing yet"),
         };
         write!(f, "{}", s)
     }
