@@ -1,6 +1,6 @@
 use crate::token::Token;
 
-#[derive(PartialEq, PartialOrd, Clone, Copy)]
+#[derive(PartialEq, PartialOrd, Clone, Copy, Debug)]
 pub enum Precedence {
     Lowest,
     Equals,
@@ -23,6 +23,7 @@ impl Precedence {
             Token::Minus => Self::Sum,
             Token::Slash => Self::Product,
             Token::Asterisk => Self::Product,
+            Token::Lparen => Self::Call,
             _ => Self::Lowest,
         }
     }

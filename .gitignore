@@ -12,3 +12,7 @@ target
 
 # zed config
 .zed/
+
+.dev/
+
+.DS_Store

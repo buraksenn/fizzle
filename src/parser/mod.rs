@@ -8,6 +8,7 @@ use crate::{
     token::Token,
 };
 use anyhow::anyhow;
+use log::debug;
 
 mod precedence;
 
@@ -70,7 +71,7 @@ impl<'a> Parser<'a> {
     fn parse_expression_statement(&mut self) -> ParserResult<Statement> {
         let exp = self.parse_expression(Precedence::Lowest)?;
 
-        if self.expect_peek_token_is(&Token::Semicolon) {
+        if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
@@ -89,8 +90,7 @@ impl<'a> Parser<'a> {
             ));
         }
 
-        while !self.expect_peek_token_is(&Token::Semicolon) && precedence < self.peek_precendence()
-        {
+        while !self.peek_token_is(&Token::Semicolon) && precedence < self.peek_precendence() {
             if let Some(infix) = self.peek_infix_fn() {
                 self.next_token();
                 left_exp = infix(self, left_exp)?;
@@ -131,7 +131,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_return_statement(&mut self) -> ParserResult<Statement> {
-        while !self.expect_current_token_is(&Token::Semicolon) {
+        while !self.expect_current_token_is(Token::Semicolon) {
             self.next_token();
         }
 
@@ -140,11 +140,33 @@ impl<'a> Parser<'a> {
         })
     }
 
+    fn parse_expression_list(&mut self, end: Token) -> ParserResult<Vec<Expression>> {
+        let mut list: Vec<Expression> = Vec::new();
+
+        if self.peek_token_is(&end) {
+            self.next_token();
+            return Ok(list);
+        }
+
+        self.next_token();
+        list.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            list.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        self.expect_peek(end)?;
+
+        Ok(list)
+    }
+
     fn parse_let_statement(&mut self) -> ParserResult<Statement> {
         let name = self.expect_ident()?;
         self.expect_peek(Token::Assign)?;
 
-        while !self.expect_current_token_is(&Token::Semicolon) {
+        while !self.expect_current_token_is(Token::Semicolon) {
             self.next_token();
         }
 
@@ -155,7 +177,7 @@ impl<'a> Parser<'a> {
     }
 
     fn expect_peek(&mut self, tok: Token) -> ParserResult<()> {
-        if self.expect_peek_token_is(&tok) {
+        if self.peek_token_is(&tok) {
             self.next_token();
             return Ok(());
         } else {
@@ -177,12 +199,20 @@ impl<'a> Parser<'a> {
         Ok(name)
     }
 
-    fn expect_current_token_is(&self, tok: &Token) -> bool {
-        return self.current_token == *tok;
+    fn expect_current_token_is(&self, tok: Token) -> bool {
+        match (&tok, &self.current_token) {
+            (Token::Ident(_), Token::Ident(_)) => true,
+            (Token::Int(_), Token::Int(_)) => true,
+            _ => tok == self.current_token,
+        }
     }
 
-    fn expect_peek_token_is(&self, tok: &Token) -> bool {
-        return self.peek_token == *tok;
+    fn peek_token_is(&self, tok: &Token) -> bool {
+        match (&tok, &self.peek_token) {
+            (Token::Ident(_), Token::Ident(_)) => true,
+            (Token::Int(_), Token::Int(_)) => true,
+            _ => tok == &self.peek_token,
+        }
     }
 
     fn peek_precendence(&self) -> Precedence {
@@ -234,9 +264,20 @@ fn parse_grouped_expression(parser: &mut Parser<'_>) -> ParserResult<Expression>
     Ok(exp)
 }
 
+fn parse_call_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
+    debug!(
+        "Entered call expression current token: {}, peek token: {}",
+        parser.current_token, parser.peek_token
+    );
+    Ok(Expression::Call(Box::new(CallExpression {
+        function: left,
+        arguments: parser.parse_expression_list(Token::Rparen)?,
+    })))
+}
+
 fn parse_function_parameters(parser: &mut Parser<'_>) -> ParserResult<Vec<String>> {
     let mut parameters: Vec<String> = Vec::new();
-    if parser.expect_peek_token_is(&Token::Rparen) {
+    if parser.peek_token_is(&Token::Rparen) {
         parser.next_token();
         return Ok(parameters);
     }
@@ -244,7 +285,7 @@ fn parse_function_parameters(parser: &mut Parser<'_>) -> ParserResult<Vec<String
 
     parameters.push(get_string_from_token(&parser.current_token)?);
 
-    while parser.expect_peek_token_is(&Token::Comma) {
+    while parser.peek_token_is(&Token::Comma) {
         parser.next_token();
         parser.next_token();
         parameters.push(get_string_from_token(&parser.current_token)?);
@@ -284,7 +325,7 @@ fn parse_if_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     parser.next_token();
     let consequence = parse_block_statement(parser)?;
 
-    let alternative = if parser.expect_peek_token_is(&Token::Else) {
+    let alternative = if parser.peek_token_is(&Token::Else) {
         // skip else
         parser.next_token();
         parser.expect_peek(Token::Lbrace)?;
@@ -306,8 +347,8 @@ fn parse_if_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
 fn parse_block_statement(parser: &mut Parser<'_>) -> ParserResult<BlockStatement> {
     let mut statements: Vec<Statement> = Vec::new();
 
-    while !parser.expect_current_token_is(&Token::Eof)
-        && !parser.expect_current_token_is(&Token::Rbrace)
+    while !parser.expect_current_token_is(Token::Eof)
+        && !parser.expect_current_token_is(Token::Rbrace)
     {
         let st = parser.parse_statement()?;
         parser.next_token();
@@ -338,32 +379,6 @@ fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> 
     })
 }
 
-fn parse_call_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
-    Ok(Expression::Call(Box::new(CallExpression {
-        function: left,
-        arguments: parse_call_arguments(parser)?,
-    })))
-}
-
-fn parse_call_arguments(parser: &mut Parser<'_>) -> ParserResult<Vec<Expression>> {
-    let mut arguments: Vec<Expression> = Vec::new();
-
-    if parser.expect_peek_token_is(&Token::Rparen) {
-        parser.next_token();
-        return Ok(arguments);
-    }
-    parser.next_token();
-
-    arguments.push(parser.parse_expression(Precedence::Lowest)?);
-
-    while parser.expect_peek_token_is(&Token::Comma) {
-        parser.next_token();
-        parser.next_token();
-        arguments.push(parser.parse_expression(Precedence::Lowest)?);
-    }
-
-    Ok(arguments)
-}
 fn parse_infix_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
     let tok = parser.current_token.clone();
     let precedence = parser.current_precendence();
@@ -911,6 +926,88 @@ mod test {
                     }
                 }
                 _ => panic!("{:?} not a function literal", exp),
+            }
+        }
+    }
+
+    #[test]
+    fn test_call_expression() {
+        let input = "add(1, 2 * 3, 4 + 5);";
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::Call(call) => {
+                test_identifier(&call.function, "add");
+                assert_eq!(call.arguments.len(), 3);
+                let mut args = (&call.arguments).into_iter();
+                test_integer_literal(&args.next().unwrap(), 1);
+                test_integer_infix(&args.next().unwrap(), 2, Token::Asterisk, 3);
+                test_integer_infix(&args.next().unwrap(), 4, Token::Plus, 5)
+            }
+            _ => panic!("{} is not a call expression", exp),
+        }
+    }
+
+    fn test_integer_infix(exp: &Expression, l: i64, op: Token, r: i64) {
+        match exp {
+            Expression::Infix {
+                left,
+                operator,
+                right,
+            } => {
+                assert_eq!(
+                    op, *operator,
+                    "expected {} operator but got {}",
+                    op, operator
+                );
+                test_integer_literal(&left, l);
+                test_integer_literal(&right, r);
+            }
+            exp => panic!("expected prefix expression but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn call_expression_parameter_parsing() {
+        struct Test<'a> {
+            input: &'a str,
+            expected_ident: &'a str,
+            expected_args: Vec<&'a str>,
+        }
+
+        let tests = vec![
+            Test {
+                input: "add();",
+                expected_ident: "add",
+                expected_args: vec![],
+            },
+            Test {
+                input: "add(1);",
+                expected_ident: "add",
+                expected_args: vec!["1"],
+            },
+            Test {
+                input: "add(1, 2 * 3, 4 + 5);",
+                expected_ident: "add",
+                expected_args: vec!["1", "(2 * 3)", "(4 + 5)"],
+            },
+        ];
+
+        for t in tests {
+            let prog = setup(t.input, 1);
+            let exp = unwrap_first_expression_from_prog(&prog);
+
+            match exp {
+                Expression::Call(call) => {
+                    test_identifier(&call.function, t.expected_ident);
+                    assert_eq!(call.arguments.len(), t.expected_args.len());
+                    let mut args = (&call.arguments).into_iter();
+                    for a in t.expected_args {
+                        assert_eq!(a.to_string(), args.next().unwrap().to_string());
+                    }
+                }
+                _ => panic!("{:?} is not a call expression", exp),
             }
         }
     }
