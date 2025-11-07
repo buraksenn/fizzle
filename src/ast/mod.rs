@@ -57,7 +57,7 @@ impl fmt::Display for FunctionExpression {
             .into_iter()
             .map(|pm| pm.to_string())
             .collect();
-        write!(f, "fn({}) {{ {} }}", parameters.join(","), self.body)
+        write!(f, "fn({}) {{ {} }}", parameters.join(", "), self.body)
     }
 }
 
@@ -73,7 +73,7 @@ impl fmt::Display for CallExpression {
             .into_iter()
             .map(|pm| pm.to_string())
             .collect();
-        write!(f, "{}({})", self.function, args.join(","))
+        write!(f, "{}({})", self.function, args.join(", "))
     }
 }
 
