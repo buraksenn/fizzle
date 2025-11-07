@@ -4,7 +4,7 @@ use fizzle::repl;
 
 fn main() {
     env_logger::init();
-    println!("Hello, this is the Monkey programming language!");
+    println!("Hello, this is the Fizzle programming language!");
     println!("Feel free to type in commands");
 
     repl::start(io::stdin().lock(), io::stdout());

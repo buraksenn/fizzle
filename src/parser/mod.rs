@@ -24,7 +24,7 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    fn new(mut l: Lexer<'a>) -> Self {
+    pub fn new(mut l: Lexer<'a>) -> Self {
         let current = l.next_token();
         let next = l.next_token();
 
@@ -39,7 +39,7 @@ impl<'a> Parser<'a> {
         self.current_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
     }
 
-    fn parse(&mut self) -> ParserResult<Program> {
+    pub fn parse(&mut self) -> ParserResult<Program> {
         let mut program = Program::default();
         let mut parse_error: Option<anyhow::Error> = None;
 
