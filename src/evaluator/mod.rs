@@ -47,9 +47,20 @@ fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
 fn evaluate_prefix_expression(operator: &Token, operand: Object) -> EvaluatorResult {
     match operator {
         Token::Bang => evaluate_bang_expression(operand),
+        Token::Minus => evaluate_minus_expression(operand),
         tok => Err(anyhow!(
-            "expected ! but got unsupported {} token while evaluation prefix expression",
+            "expected !/- but got unsupported {} token while evaluation prefix expression",
             tok
+        )),
+    }
+}
+
+fn evaluate_minus_expression(operand: Object) -> EvaluatorResult {
+    match operand {
+        Object::Integer(i) => Ok(Object::Integer(-i)),
+        obj => Err(anyhow!(
+            "expected integer for minus expression, got: {}",
+            obj
         )),
     }
 }
@@ -80,6 +91,14 @@ mod test {
             Test {
                 input: "10",
                 expected: 10,
+            },
+            Test {
+                input: "-5",
+                expected: -5,
+            },
+            Test {
+                input: "-10",
+                expected: -10,
             },
         ];
 
