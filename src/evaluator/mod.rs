@@ -32,6 +32,7 @@ fn evaluate_statement(st: &Statement) -> EvaluatorResult<Object> {
 fn evaluate_expression(exp: &Expression) -> EvaluatorResult<Object> {
     match exp {
         Expression::IntegerLiteral(i) => Ok(Object::Integer(*i)),
+        Expression::Boolean(b) => Ok(Object::Boolean(*b)),
         _ => todo!(),
     }
 }
@@ -58,10 +59,32 @@ mod test {
             },
         ];
 
-        let mut it = tests.iter();
-        while let Some(case) = it.next() {
+        for case in tests.iter() {
             let obj = eval(case.input);
             assert_integer_object(obj, case.expected);
+        }
+    }
+
+    #[test]
+    fn eval_boolean_expression() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: bool,
+        }
+        let tests = vec![
+            Test {
+                input: "true",
+                expected: true,
+            },
+            Test {
+                input: "false",
+                expected: false,
+            },
+        ];
+
+        for case in tests.iter() {
+            let obj = eval(case.input);
+            assert_boolean_object(obj, case.expected);
         }
     }
 
@@ -74,6 +97,13 @@ mod test {
     fn assert_integer_object(left: Object, r: i64) {
         match left {
             Object::Integer(i) => assert_eq!(i, r),
+            x => panic!("expected integer but got {}", x),
+        }
+    }
+
+    fn assert_boolean_object(left: Object, r: bool) {
+        match left {
+            Object::Boolean(b) => assert_eq!(b, r),
             x => panic!("expected integer but got {}", x),
         }
     }
