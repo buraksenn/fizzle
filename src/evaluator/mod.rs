@@ -55,20 +55,20 @@ fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
 
 fn evaluate_infix_expression(left: Object, operator: &Token, right: Object) -> EvaluatorResult {
     match (left, right) {
-        (Object::Integer(l), Object::Integer(r)) => {
-            let res = match operator {
-                Token::Minus => l - r,
-                Token::Plus => l + r,
-                Token::Slash => l / r,
-                Token::Asterisk => l * r,
-                _ => Err(anyhow!(
-                    "unsupported integer infix expression: {}",
-                    operator
-                ))?,
-            };
-
-            Ok(Object::Integer(res))
-        }
+        (Object::Integer(l), Object::Integer(r)) => match operator {
+            Token::Minus => Ok(Object::Integer(l - r)),
+            Token::Plus => Ok(Object::Integer(l + r)),
+            Token::Slash => Ok(Object::Integer(l / r)),
+            Token::Asterisk => Ok(Object::Integer(l * r)),
+            Token::Gt => Ok(Object::Boolean(l > r)),
+            Token::Lt => Ok(Object::Boolean(l < r)),
+            Token::Eq => Ok(Object::Boolean(l == r)),
+            Token::Neq => Ok(Object::Boolean(l != r)),
+            _ => Err(anyhow!(
+                "unsupported integer infix expression: {}",
+                operator
+            ))?,
+        },
         (_, _) => Err(anyhow!("unsupported infix expressions")),
     }
 }
@@ -195,6 +195,38 @@ mod test {
             Test {
                 input: "false",
                 expected: false,
+            },
+            Test {
+                input: "1 < 2",
+                expected: true,
+            },
+            Test {
+                input: "1 > 2",
+                expected: false,
+            },
+            Test {
+                input: "1 < 1",
+                expected: false,
+            },
+            Test {
+                input: "1 > 1",
+                expected: false,
+            },
+            Test {
+                input: "1 == 1",
+                expected: true,
+            },
+            Test {
+                input: "1 != 1",
+                expected: false,
+            },
+            Test {
+                input: "1 == 2",
+                expected: false,
+            },
+            Test {
+                input: "1 != 2",
+                expected: true,
             },
         ];
 
