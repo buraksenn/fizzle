@@ -1,7 +1,6 @@
 use std::io::{BufRead, Write};
 
-use crate::lexer::Lexer;
-use crate::parser::Parser;
+use crate::evaluator::evaluate;
 
 const PROMPT: &str = ">> ";
 
@@ -18,9 +17,11 @@ pub fn start<R: BufRead, W: Write>(mut input: R, mut output: W) {
             return;
         }
 
-        let mut parser = Parser::new(Lexer::new(&line));
-        match parser.parse_program() {
-            Ok(program) => writeln!(output, "{}", program).unwrap(),
+        match crate::parser::parse(&line) {
+            Ok(node) => match evaluate(node) {
+                Ok(obj) => writeln!(output, "{}", obj.inspect()).unwrap(),
+                Err(e) => writeln!(output, "Error: {}", e).unwrap(),
+            },
             Err(e) => writeln!(output, "Error: {}", e).unwrap(),
         }
     }

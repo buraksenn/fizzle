@@ -5,7 +5,7 @@ use crate::{
 
 type EvaluatorResult<T> = Result<T, anyhow::Error>;
 
-fn evaluate(n: Node) -> EvaluatorResult<Object> {
+pub fn evaluate(n: Node) -> EvaluatorResult<Object> {
     match n {
         Node::Expression(exp) => evaluate_expression(&exp),
         Node::Program(p) => evaluate_program(&p),
