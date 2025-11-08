@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 
 use crate::{
-    ast::{Expression, Node, Program, Statement},
+    ast::{BlockStatement, Expression, Node, Program, Statement},
     object::Object,
     token::{self, Token},
 };
@@ -49,8 +49,35 @@ fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
             let r = evaluate_expression(right)?;
             evaluate_infix_expression(l, operator, r)
         }
+        Expression::If(exp) => {
+            let cond = evaluate_expression(&exp.condition)?;
+            if is_truthy(&cond) {
+                return evaluate_block_statement(&exp.consequence);
+            } else {
+                match exp.alternative {
+                    Some(ref alt) => evaluate_block_statement(alt),
+                    None => Ok(Object::Null),
+                }
+            }
+        }
         _ => todo!(),
     }
+}
+
+fn is_truthy(obj: &Object) -> bool {
+    match obj {
+        Object::Boolean(false) | Object::Null => false,
+        _ => true,
+    }
+}
+
+fn evaluate_block_statement(block: &BlockStatement) -> EvaluatorResult {
+    let mut result = Object::Null;
+    for st in block.statements.iter() {
+        result = evaluate_statement(st)?
+    }
+
+    Ok(result)
 }
 
 fn evaluate_infix_expression(left: Object, operator: &Token, right: Object) -> EvaluatorResult {
@@ -103,10 +130,7 @@ fn evaluate_minus_expression(operand: Object) -> EvaluatorResult {
 }
 
 fn evaluate_bang_expression(operand: Object) -> EvaluatorResult {
-    match operand {
-        Object::Boolean(false) | Object::Null => Ok(Object::Boolean(true)),
-        _ => Ok(Object::Boolean(false)),
-    }
+    Ok(Object::Boolean(!is_truthy(&operand)))
 }
 
 #[cfg(test)]
@@ -319,10 +343,64 @@ mod test {
         }
     }
 
+    #[test]
+    fn if_else_expressions() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: Object,
+        }
+        let tests = vec![
+            Test {
+                input: "if (true) { 10 }",
+                expected: Object::Integer(10),
+            },
+            Test {
+                input: "if (false) { 10 }",
+                expected: Object::Null,
+            },
+            Test {
+                input: "if (1) { 10 }",
+                expected: Object::Integer(10),
+            },
+            Test {
+                input: "if (1 < 2) { 10 }",
+                expected: Object::Integer(10),
+            },
+            Test {
+                input: "if (1 > 2) { 10 }",
+                expected: Object::Null,
+            },
+            Test {
+                input: "if (1 > 2) { 10 } else { 20 }",
+                expected: Object::Integer(20),
+            },
+            Test {
+                input: "if (1 < 2) { 10 } else { 20 }",
+                expected: Object::Integer(10),
+            },
+        ];
+
+        for t in tests {
+            let evaluated = eval(t.input);
+
+            match t.expected {
+                Object::Integer(i) => assert_integer_object(evaluated, i),
+                _ => assert_null_object(evaluated),
+            }
+        }
+    }
+
     fn eval(input: &str) -> Object {
         let node = parse(input).unwrap();
 
         evaluate(node).unwrap()
+    }
+
+    fn assert_null_object(obj: Object) {
+        match obj {
+            Object::Null => {}
+            x => panic!("expected null but got {}", x),
+        }
     }
 
     fn assert_integer_object(left: Object, r: i64) {
