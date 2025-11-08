@@ -69,6 +69,14 @@ fn evaluate_infix_expression(left: Object, operator: &Token, right: Object) -> E
                 operator
             ))?,
         },
+        (Object::Boolean(l), Object::Boolean(r)) => match operator {
+            Token::Eq => Ok(Object::Boolean(l == r)),
+            Token::Neq => Ok(Object::Boolean(l != r)),
+            _ => Err(anyhow!(
+                "unsupported boolean infix expression: {}",
+                operator
+            ))?,
+        },
         (_, _) => Err(anyhow!("unsupported infix expressions")),
     }
 }
@@ -226,6 +234,42 @@ mod test {
             },
             Test {
                 input: "1 != 2",
+                expected: true,
+            },
+            Test {
+                input: "true == true",
+                expected: true,
+            },
+            Test {
+                input: "false == false",
+                expected: true,
+            },
+            Test {
+                input: "true == false",
+                expected: false,
+            },
+            Test {
+                input: "true != false",
+                expected: true,
+            },
+            Test {
+                input: "false != true",
+                expected: true,
+            },
+            Test {
+                input: "(1 < 2) == true",
+                expected: true,
+            },
+            Test {
+                input: "(1 < 2) == false",
+                expected: false,
+            },
+            Test {
+                input: "(1 > 2) == true",
+                expected: false,
+            },
+            Test {
+                input: "(1 > 2) == false",
                 expected: true,
             },
         ];
