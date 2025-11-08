@@ -3,6 +3,13 @@ use std::fmt;
 use crate::token::Token;
 
 #[derive(Debug)]
+pub enum Node {
+    Program(Box<Program>),
+    Expression(Box<Expression>),
+    Statement(Box<Statement>),
+}
+
+#[derive(Debug)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i64),
@@ -24,7 +31,7 @@ pub enum Expression {
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            Expression::Identifier(s) => format!("{}", s),
+            Expression::Identifier(s) => s.clone(),
             Expression::IntegerLiteral(i) => format!("{}", i),
             Expression::Boolean(val) => format!("{}", val),
             Expression::Prefix { operator, operand } => {
@@ -51,10 +58,7 @@ pub struct FunctionExpression {
 
 impl fmt::Display for FunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let parameters: Vec<String> = (&self.parameters)
-            .into_iter()
-            .map(|pm| pm.to_string())
-            .collect();
+        let parameters: Vec<String> = (self.parameters).iter().map(|pm| pm.to_string()).collect();
         write!(f, "fn({}) {{ {} }}", parameters.join(", "), self.body)
     }
 }
@@ -67,10 +71,7 @@ pub struct CallExpression {
 
 impl fmt::Display for CallExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let args: Vec<String> = (&self.arguments)
-            .into_iter()
-            .map(|pm| pm.to_string())
-            .collect();
+        let args: Vec<String> = (self.arguments).iter().map(|pm| pm.to_string()).collect();
         write!(f, "{}({})", self.function, args.join(", "))
     }
 }
@@ -100,8 +101,9 @@ pub struct BlockStatement {
 
 impl fmt::Display for BlockStatement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let statements: Vec<String> = (&self.statements)
-            .into_iter()
+        let statements: Vec<String> = self
+            .statements
+            .iter()
             .map(|stmt| stmt.to_string())
             .collect();
         write!(f, "{}", statements.join(""))
@@ -122,21 +124,21 @@ impl fmt::Display for Statement {
             Statement::Let { name, value } => format!("let {} = {};", name, value),
             Statement::Return { value } => format!("return {};", value),
             Statement::Expression { value } => format!("{}", value),
-            Statement::Block(b) => format!("{}", b.to_string()),
+            Statement::Block(b) => b.to_string(),
         };
         write!(f, "{}", s)
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Program {
     pub statements: Vec<Statement>,
 }
 
 impl fmt::Display for Program {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let statements: Vec<String> = (&self.statements)
-            .into_iter()
+        let statements: Vec<String> = (self.statements)
+            .iter()
             .map(|stmt| stmt.to_string())
             .collect();
         write!(f, "{}", statements.join(""))

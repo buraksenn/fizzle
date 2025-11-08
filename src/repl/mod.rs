@@ -19,7 +19,7 @@ pub fn start<R: BufRead, W: Write>(mut input: R, mut output: W) {
         }
 
         let mut parser = Parser::new(Lexer::new(&line));
-        match parser.parse() {
+        match parser.parse_program() {
             Ok(program) => writeln!(output, "{}", program).unwrap(),
             Err(e) => writeln!(output, "Error: {}", e).unwrap(),
         }

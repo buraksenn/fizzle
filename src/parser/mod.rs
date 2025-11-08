@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        BlockStatement, CallExpression, Expression, FunctionExpression, IfExpression, Program,
-        Statement,
+        BlockStatement, CallExpression, Expression, FunctionExpression, IfExpression, Node,
+        Program, Statement,
     },
     lexer::Lexer,
     parser::precedence::Precedence,
@@ -15,6 +15,12 @@ mod precedence;
 type ParserResult<T> = anyhow::Result<T>;
 type PrefixParseFn = fn(&mut Parser<'_>) -> ParserResult<Expression>;
 type InfixParseFn = fn(&mut Parser<'_>, Expression) -> ParserResult<Expression>;
+
+pub fn parse(input: &str) -> ParserResult<Node> {
+    let mut parser = Parser::new(Lexer::new(input));
+    let prog = parser.parse_program()?;
+    Ok(Node::Program(Box::new(prog)))
+}
 
 pub struct Parser<'a> {
     l: Lexer<'a>,
@@ -39,7 +45,7 @@ impl<'a> Parser<'a> {
         self.current_token = std::mem::replace(&mut self.peek_token, self.l.next_token());
     }
 
-    pub fn parse(&mut self) -> ParserResult<Program> {
+    pub fn parse_program(&mut self) -> ParserResult<Program> {
         let mut program = Program::default();
         let mut parse_error: Option<anyhow::Error> = None;
 
@@ -1065,7 +1071,7 @@ mod test {
 
         let l = Lexer::new(input);
         let mut p = Parser::new(l);
-        let prog = p.parse().unwrap();
+        let prog = p.parse_program().unwrap();
 
         if stmt_count != 0 && prog.statements.len() != stmt_count {
             panic!(
