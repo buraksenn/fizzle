@@ -40,7 +40,36 @@ fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
             let right = evaluate_expression(operand)?;
             evaluate_prefix_expression(operator, right)
         }
+        Expression::Infix {
+            left,
+            operator,
+            right,
+        } => {
+            let l = evaluate_expression(left)?;
+            let r = evaluate_expression(right)?;
+            evaluate_infix_expression(l, operator, r)
+        }
         _ => todo!(),
+    }
+}
+
+fn evaluate_infix_expression(left: Object, operator: &Token, right: Object) -> EvaluatorResult {
+    match (left, right) {
+        (Object::Integer(l), Object::Integer(r)) => {
+            let res = match operator {
+                Token::Minus => l - r,
+                Token::Plus => l + r,
+                Token::Slash => l / r,
+                Token::Asterisk => l * r,
+                _ => Err(anyhow!(
+                    "unsupported integer infix expression: {}",
+                    operator
+                ))?,
+            };
+
+            Ok(Object::Integer(res))
+        }
+        (_, _) => Err(anyhow!("unsupported infix expressions")),
     }
 }
 
@@ -99,6 +128,50 @@ mod test {
             Test {
                 input: "-10",
                 expected: -10,
+            },
+            Test {
+                input: "5 + 5 + 5 + 5 - 10",
+                expected: 10,
+            },
+            Test {
+                input: "2 * 2 * 2 * 2 * 2",
+                expected: 32,
+            },
+            Test {
+                input: "-50 + 100 + -50",
+                expected: 0,
+            },
+            Test {
+                input: "5 * 2 + 10",
+                expected: 20,
+            },
+            Test {
+                input: "5 + 2 * 10",
+                expected: 25,
+            },
+            Test {
+                input: "20 + 2 * -10",
+                expected: 0,
+            },
+            Test {
+                input: "50 / 2 * 2 + 10",
+                expected: 60,
+            },
+            Test {
+                input: "2 * (5 + 10)",
+                expected: 30,
+            },
+            Test {
+                input: "3 * 3 * 3 + 10",
+                expected: 37,
+            },
+            Test {
+                input: "3 * (3 * 3) + 10",
+                expected: 37,
+            },
+            Test {
+                input: "(5 + 10 * 2 + 15 / 3) * 2 + -10",
+                expected: 50,
             },
         ];
 
