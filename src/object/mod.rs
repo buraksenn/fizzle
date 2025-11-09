@@ -4,6 +4,7 @@ use std::fmt;
 pub enum Object {
     Integer(i64),
     Boolean(bool),
+    Return(Box<Object>),
     Null,
 }
 
@@ -12,6 +13,7 @@ impl Object {
         match self {
             Object::Integer(i) => i.to_string(),
             Object::Boolean(b) => b.to_string(),
+            Object::Return(obj) => obj.to_string(),
             Object::Null => "null".into(),
         }
     }

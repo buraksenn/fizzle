@@ -3,7 +3,7 @@ use anyhow::anyhow;
 use crate::{
     ast::{BlockStatement, Expression, Node, Program, Statement},
     object::Object,
-    token::{self, Token},
+    token::Token,
 };
 
 type EvaluatorResult = Result<Object, anyhow::Error>;
@@ -20,6 +20,9 @@ fn evaluate_program(prog: &Program) -> EvaluatorResult {
     let mut result = Object::Null;
     for st in prog.statements.iter() {
         result = evaluate_statement(st)?;
+        if let Object::Return(val) = result {
+            return Ok(*val);
+        }
     }
 
     Ok(result)
@@ -28,6 +31,10 @@ fn evaluate_program(prog: &Program) -> EvaluatorResult {
 fn evaluate_statement(st: &Statement) -> EvaluatorResult {
     match st {
         Statement::Expression { value } => evaluate_expression(value),
+        Statement::Return { value } => {
+            let exp = evaluate_expression(value)?;
+            Ok(Object::Return(Box::new(exp)))
+        }
         _ => todo!(),
     }
 }
@@ -52,7 +59,7 @@ fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
         Expression::If(exp) => {
             let cond = evaluate_expression(&exp.condition)?;
             if is_truthy(&cond) {
-                return evaluate_block_statement(&exp.consequence);
+                evaluate_block_statement(&exp.consequence)
             } else {
                 match exp.alternative {
                     Some(ref alt) => evaluate_block_statement(alt),
@@ -390,7 +397,43 @@ mod test {
         }
     }
 
+    #[test]
+    fn test_return_statements() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: i64,
+        }
+        let tests = vec![
+            Test {
+                input: "return 10;",
+                expected: 10,
+            },
+            Test {
+                input: "return 10; 9;",
+                expected: 10,
+            },
+            Test {
+                input: "return 2 * 5; 9;",
+                expected: 10,
+            },
+            Test {
+                input: "9; return 2 * 5; 9;",
+                expected: 10,
+            },
+        ];
+
+        for t in tests {
+            let evaluated = eval(t.input);
+            assert_integer_object(evaluated, t.expected)
+        }
+    }
+
     fn eval(input: &str) -> Object {
+        let _ = env_logger::builder()
+            .filter(None, log::LevelFilter::Debug)
+            .is_test(true)
+            .try_init();
+
         let node = parse(input).unwrap();
 
         evaluate(node).unwrap()
