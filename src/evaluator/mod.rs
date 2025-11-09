@@ -81,7 +81,10 @@ fn is_truthy(obj: &Object) -> bool {
 fn evaluate_block_statement(block: &BlockStatement) -> EvaluatorResult {
     let mut result = Object::Null;
     for st in block.statements.iter() {
-        result = evaluate_statement(st)?
+        result = evaluate_statement(st)?;
+        if let Object::Return(_) = result {
+            return Ok(result);
+        }
     }
 
     Ok(result)
@@ -418,6 +421,15 @@ mod test {
             },
             Test {
                 input: "9; return 2 * 5; 9;",
+                expected: 10,
+            },
+            Test {
+                input: "if (10 > 1) {
+                           if (10 > 1) {
+                             return 10;
+                           }
+                           return 1;
+                         }",
                 expected: 10,
             },
         ];
