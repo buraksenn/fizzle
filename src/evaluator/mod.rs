@@ -87,6 +87,7 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
                 }
             }
         }
+        Expression::Function(func) => Ok(Rc::new(Object::Function(Box::new(x)))),
         _ => todo!(),
     }
 }

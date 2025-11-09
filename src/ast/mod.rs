@@ -9,7 +9,7 @@ pub enum Node {
     Statement(Box<Statement>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i64),
@@ -50,7 +50,7 @@ impl fmt::Display for Expression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FunctionExpression {
     pub parameters: Vec<String>,
     pub body: BlockStatement,
@@ -63,7 +63,7 @@ impl fmt::Display for FunctionExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CallExpression {
     pub function: Expression,
     pub arguments: Vec<Expression>,
@@ -76,7 +76,7 @@ impl fmt::Display for CallExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct IfExpression {
     pub condition: Expression,
     pub consequence: BlockStatement,
@@ -94,7 +94,7 @@ impl fmt::Display for IfExpression {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
 }
@@ -110,7 +110,7 @@ impl fmt::Display for BlockStatement {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Let { name: String, value: Expression },
     Return { value: Expression },
