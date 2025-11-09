@@ -1,10 +1,16 @@
-use std::io::{BufRead, Write};
+use std::{
+    cell::RefCell,
+    io::{BufRead, Write},
+    rc::Rc,
+};
 
-use crate::evaluator::evaluate;
+use crate::{evaluator::evaluate, object::environment::Environment};
 
 const PROMPT: &str = ">> ";
 
 pub fn start<R: BufRead, W: Write>(mut input: R, mut output: W) {
+    let env = Rc::new(RefCell::new(Environment::new()));
+
     loop {
         // print prompt
         write!(output, "{PROMPT}").unwrap();
@@ -18,8 +24,8 @@ pub fn start<R: BufRead, W: Write>(mut input: R, mut output: W) {
         }
 
         match crate::parser::parse(&line) {
-            Ok(node) => match evaluate(node) {
-                Ok(obj) => writeln!(output, "{}", obj.inspect()).unwrap(),
+            Ok(node) => match evaluate(node, env.clone()) {
+                Ok(obj) => writeln!(output, "{}", obj.as_ref().inspect()).unwrap(),
                 Err(e) => writeln!(output, "Error: {}", e).unwrap(),
             },
             Err(e) => writeln!(output, "Error: {}", e).unwrap(),

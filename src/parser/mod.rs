@@ -587,7 +587,8 @@ mod test {
             input: &'a str,
             operator: Token,
             value: i64,
-        };
+        }
+
         let tests = vec![
             Test {
                 input: "!5;",

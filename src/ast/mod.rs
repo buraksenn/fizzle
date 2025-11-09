@@ -115,7 +115,6 @@ pub enum Statement {
     Let { name: String, value: Expression },
     Return { value: Expression },
     Expression { value: Expression },
-    Block(BlockStatement),
 }
 
 impl fmt::Display for Statement {
@@ -124,7 +123,6 @@ impl fmt::Display for Statement {
             Statement::Let { name, value } => format!("let {} = {};", name, value),
             Statement::Return { value } => format!("return {};", value),
             Statement::Expression { value } => format!("{}", value),
-            Statement::Block(b) => b.to_string(),
         };
         write!(f, "{}", s)
     }

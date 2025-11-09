@@ -1,50 +1,70 @@
+use std::{cell::RefCell, rc::Rc};
+
 use anyhow::anyhow;
 
 use crate::{
     ast::{BlockStatement, Expression, Node, Program, Statement},
-    object::Object,
+    object::{environment::Environment, object::Object},
     token::Token,
 };
 
-type EvaluatorResult = Result<Object, anyhow::Error>;
+type EvaluatorResult = Result<Rc<Object>, anyhow::Error>;
 
-pub fn evaluate(n: Node) -> EvaluatorResult {
+pub fn evaluate(n: Node, env: Rc<RefCell<Environment>>) -> EvaluatorResult {
     match n {
-        Node::Expression(exp) => evaluate_expression(&exp),
-        Node::Program(p) => evaluate_program(&p),
-        Node::Statement(st) => evaluate_statement(&st),
+        Node::Expression(exp) => evaluate_expression(&exp, env),
+        Node::Program(p) => evaluate_program(&p, env),
+        Node::Statement(st) => evaluate_statement(&st, env),
     }
 }
 
-fn evaluate_program(prog: &Program) -> EvaluatorResult {
-    let mut result = Object::Null;
+fn evaluate_program(prog: &Program, env: Rc<RefCell<Environment>>) -> EvaluatorResult {
+    let mut result = Rc::new(Object::Null);
     for st in prog.statements.iter() {
-        result = evaluate_statement(st)?;
-        if let Object::Return(val) = result {
-            return Ok(*val);
+        result = evaluate_statement(st, env.clone())?;
+        if let Object::Return(val) = result.as_ref() {
+            return Ok(Rc::new((**val).clone()));
         }
     }
 
     Ok(result)
 }
 
-fn evaluate_statement(st: &Statement) -> EvaluatorResult {
+fn evaluate_statement(st: &Statement, env: Rc<RefCell<Environment>>) -> EvaluatorResult {
     match st {
-        Statement::Expression { value } => evaluate_expression(value),
+        Statement::Expression { value } => evaluate_expression(value, env),
         Statement::Return { value } => {
-            let exp = evaluate_expression(value)?;
-            Ok(Object::Return(Box::new(exp)))
+            let exp = evaluate_expression(value, env)?;
+            Ok(Rc::new(Object::Return(Box::new((*exp).clone()))))
         }
-        _ => todo!(),
+        Statement::Let { name, value } => evaluate_let_statement(name, value, env),
     }
 }
 
-fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
+fn evaluate_let_statement(
+    name: &String,
+    value: &Expression,
+    env: Rc<RefCell<Environment>>,
+) -> EvaluatorResult {
+    let exp = evaluate_expression(value, env.clone())?;
+    env.borrow_mut().set(name.clone(), exp.clone());
+    Ok(exp)
+}
+
+fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> EvaluatorResult {
     match exp {
-        Expression::IntegerLiteral(i) => Ok(Object::Integer(*i)),
-        Expression::Boolean(b) => Ok(Object::Boolean(*b)),
+        Expression::IntegerLiteral(i) => Ok(Rc::new(Object::Integer(*i))),
+        Expression::Boolean(b) => Ok(Rc::new(Object::Boolean(*b))),
+        Expression::Identifier(s) => {
+            let val = env
+                .borrow()
+                .get(s)
+                .ok_or(anyhow!("identifier {} does not exist", s))?;
+
+            Ok(val)
+        }
         Expression::Prefix { operator, operand } => {
-            let right = evaluate_expression(operand)?;
+            let right = evaluate_expression(operand, env)?;
             evaluate_prefix_expression(operator, right)
         }
         Expression::Infix {
@@ -52,18 +72,18 @@ fn evaluate_expression(exp: &Expression) -> EvaluatorResult {
             operator,
             right,
         } => {
-            let l = evaluate_expression(left)?;
-            let r = evaluate_expression(right)?;
+            let l = evaluate_expression(left, env.clone())?;
+            let r = evaluate_expression(right, env)?;
             evaluate_infix_expression(l, operator, r)
         }
         Expression::If(exp) => {
-            let cond = evaluate_expression(&exp.condition)?;
-            if is_truthy(&cond) {
-                evaluate_block_statement(&exp.consequence)
+            let cond = evaluate_expression(&exp.condition, env.clone())?;
+            if is_truthy(cond.as_ref()) {
+                evaluate_block_statement(&exp.consequence, env)
             } else {
                 match exp.alternative {
-                    Some(ref alt) => evaluate_block_statement(alt),
-                    None => Ok(Object::Null),
+                    Some(ref alt) => evaluate_block_statement(alt, env),
+                    None => Ok(Rc::new(Object::Null)),
                 }
             }
         }
@@ -78,11 +98,14 @@ fn is_truthy(obj: &Object) -> bool {
     }
 }
 
-fn evaluate_block_statement(block: &BlockStatement) -> EvaluatorResult {
-    let mut result = Object::Null;
+fn evaluate_block_statement(
+    block: &BlockStatement,
+    env: Rc<RefCell<Environment>>,
+) -> EvaluatorResult {
+    let mut result = Rc::new(Object::Null);
     for st in block.statements.iter() {
-        result = evaluate_statement(st)?;
-        if let Object::Return(_) = result {
+        result = evaluate_statement(st, env.clone())?;
+        if let Object::Return(_) = result.as_ref() {
             return Ok(result);
         }
     }
@@ -90,25 +113,29 @@ fn evaluate_block_statement(block: &BlockStatement) -> EvaluatorResult {
     Ok(result)
 }
 
-fn evaluate_infix_expression(left: Object, operator: &Token, right: Object) -> EvaluatorResult {
-    match (left, right) {
+fn evaluate_infix_expression(
+    left: Rc<Object>,
+    operator: &Token,
+    right: Rc<Object>,
+) -> EvaluatorResult {
+    match (left.as_ref(), right.as_ref()) {
         (Object::Integer(l), Object::Integer(r)) => match operator {
-            Token::Minus => Ok(Object::Integer(l - r)),
-            Token::Plus => Ok(Object::Integer(l + r)),
-            Token::Slash => Ok(Object::Integer(l / r)),
-            Token::Asterisk => Ok(Object::Integer(l * r)),
-            Token::Gt => Ok(Object::Boolean(l > r)),
-            Token::Lt => Ok(Object::Boolean(l < r)),
-            Token::Eq => Ok(Object::Boolean(l == r)),
-            Token::Neq => Ok(Object::Boolean(l != r)),
+            Token::Minus => Ok(Rc::new(Object::Integer(l - r))),
+            Token::Plus => Ok(Rc::new(Object::Integer(l + r))),
+            Token::Slash => Ok(Rc::new(Object::Integer(l / r))),
+            Token::Asterisk => Ok(Rc::new(Object::Integer(l * r))),
+            Token::Gt => Ok(Rc::new(Object::Boolean(l > r))),
+            Token::Lt => Ok(Rc::new(Object::Boolean(l < r))),
+            Token::Eq => Ok(Rc::new(Object::Boolean(l == r))),
+            Token::Neq => Ok(Rc::new(Object::Boolean(l != r))),
             _ => Err(anyhow!(
                 "unsupported integer infix expression: {}",
                 operator
             ))?,
         },
         (Object::Boolean(l), Object::Boolean(r)) => match operator {
-            Token::Eq => Ok(Object::Boolean(l == r)),
-            Token::Neq => Ok(Object::Boolean(l != r)),
+            Token::Eq => Ok(Rc::new(Object::Boolean(l == r))),
+            Token::Neq => Ok(Rc::new(Object::Boolean(l != r))),
             _ => Err(anyhow!(
                 "unsupported boolean infix expression: {}",
                 operator
@@ -118,7 +145,7 @@ fn evaluate_infix_expression(left: Object, operator: &Token, right: Object) -> E
     }
 }
 
-fn evaluate_prefix_expression(operator: &Token, operand: Object) -> EvaluatorResult {
+fn evaluate_prefix_expression(operator: &Token, operand: Rc<Object>) -> EvaluatorResult {
     match operator {
         Token::Bang => evaluate_bang_expression(operand),
         Token::Minus => evaluate_minus_expression(operand),
@@ -129,9 +156,9 @@ fn evaluate_prefix_expression(operator: &Token, operand: Object) -> EvaluatorRes
     }
 }
 
-fn evaluate_minus_expression(operand: Object) -> EvaluatorResult {
-    match operand {
-        Object::Integer(i) => Ok(Object::Integer(-i)),
+fn evaluate_minus_expression(operand: Rc<Object>) -> EvaluatorResult {
+    match operand.as_ref() {
+        Object::Integer(i) => Ok(Rc::new(Object::Integer(-i))),
         obj => Err(anyhow!(
             "expected integer for minus expression, got: {}",
             obj
@@ -139,14 +166,14 @@ fn evaluate_minus_expression(operand: Object) -> EvaluatorResult {
     }
 }
 
-fn evaluate_bang_expression(operand: Object) -> EvaluatorResult {
-    Ok(Object::Boolean(!is_truthy(&operand)))
+fn evaluate_bang_expression(operand: Rc<Object>) -> EvaluatorResult {
+    Ok(Rc::new(Object::Boolean(!is_truthy(operand.as_ref()))))
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{object::Object, parser::parse};
+    use crate::{object::environment::Environment, parser::parse};
 
     #[test]
     fn eval_integer_expression() {
@@ -440,34 +467,66 @@ mod test {
         }
     }
 
-    fn eval(input: &str) -> Object {
+    #[test]
+    fn let_statements() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: i64,
+        }
+        let tests = vec![
+            Test {
+                input: "let a = 5; a;",
+                expected: 5,
+            },
+            Test {
+                input: "let a = 5 * 5; a;",
+                expected: 25,
+            },
+            Test {
+                input: "let a = 5; let b = a; b;",
+                expected: 5,
+            },
+            Test {
+                input: "let a = 5; let b = a; let c = a + b + 5; c;",
+                expected: 15,
+            },
+        ];
+
+        for t in tests {
+            let evaluated = eval(t.input);
+            assert_integer_object(evaluated, t.expected)
+        }
+    }
+
+    fn eval(input: &str) -> Rc<Object> {
         let _ = env_logger::builder()
             .filter(None, log::LevelFilter::Debug)
             .is_test(true)
             .try_init();
 
         let node = parse(input).unwrap();
+        let env = Rc::new(RefCell::new(Environment::new()));
 
-        evaluate(node).unwrap()
+        evaluate(node, env).unwrap()
     }
 
-    fn assert_null_object(obj: Object) {
-        match obj {
+    fn assert_null_object(obj: Rc<Object>) {
+        match obj.as_ref() {
             Object::Null => {}
             x => panic!("expected null but got {}", x),
         }
     }
 
-    fn assert_integer_object(left: Object, r: i64) {
-        match left {
-            Object::Integer(i) => assert_eq!(i, r),
+    fn assert_integer_object(left: Rc<Object>, r: i64) {
+        match left.as_ref() {
+            Object::Integer(i) => assert_eq!(i, &r),
             x => panic!("expected integer but got {}", x),
         }
     }
 
-    fn assert_boolean_object(left: Object, r: bool) {
-        match left {
-            Object::Boolean(b) => assert_eq!(b, r),
+    fn assert_boolean_object(left: Rc<Object>, r: bool) {
+        match left.as_ref() {
+            Object::Boolean(b) => assert_eq!(b, &r),
             x => panic!("expected integer but got {}", x),
         }
     }
