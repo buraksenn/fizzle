@@ -95,8 +95,47 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
             body: func.body.clone(),
             env: Rc::clone(&env),
         })))),
+        Expression::Call(call) => {
+            let evaluated_func = evaluate_expression(&call.function, Rc::clone(&env))?;
+
+            let obj_func = match evaluated_func.as_ref() {
+                Object::Function(f) => Ok(f),
+                obj => Err(anyhow!("expected function, got {}", obj)),
+            }?;
+
+            let mut args: Vec<Rc<Object>> = Vec::with_capacity(call.arguments.len());
+
+            for arg in call.arguments.iter() {
+                let obj = evaluate_expression(arg, Rc::clone(&env))?;
+                args.push(obj);
+            }
+
+            apply_function(&obj_func, args)
+        }
         _ => todo!(),
     }
+}
+
+fn apply_function(f: &Function, args: Vec<Rc<Object>>) -> EvaluatorResult {
+    let extended = extend_function_env(f, &args);
+    let evaluated = evaluate_block_statement(&f.body, extended)?;
+    Ok(evaluated)
+}
+
+fn extend_function_env(func: &Function, args: &Vec<Rc<Object>>) -> Rc<RefCell<Environment>> {
+    let env = Rc::new(RefCell::new(Environment::new_enclosed(Rc::clone(
+        &func.env,
+    ))));
+
+    let mut args_iter = args.into_iter();
+
+    for param in &func.parameters {
+        let arg = args_iter.next().unwrap();
+
+        env.borrow_mut().set(param.clone(), Rc::clone(arg))
+    }
+
+    env
 }
 
 fn is_truthy(obj: &Object) -> bool {
@@ -507,7 +546,7 @@ mod test {
     }
 
     #[test]
-    fn function_object() {
+    fn test_function_object() {
         let input = "fn(x) { x + 2; };";
         let evaluated = eval(input);
 
@@ -518,6 +557,44 @@ mod test {
                 assert_eq!(f.body.to_string(), "(x + 2)");
             }
             _ => panic!("expected function object but got {:?}", evaluated),
+        }
+    }
+
+    #[test]
+    fn test_function_application() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: i64,
+        }
+        let tests = vec![
+            Test {
+                input: "let identity = fn(x) { x; }; identity(5);",
+                expected: 5,
+            },
+            Test {
+                input: "let identity = fn(x) { return x; }; identity(5);",
+                expected: 5,
+            },
+            Test {
+                input: "let double = fn(x) { x * 2; }; double(5);",
+                expected: 10,
+            },
+            Test {
+                input: "let add = fn(x, y) { x + y; }; add(5, 5);",
+                expected: 10,
+            },
+            Test {
+                input: "let add = fn(x, y) { x + y; }; add(5 + 5, add(5, 5));",
+                expected: 20,
+            },
+            Test {
+                input: "fn(x) { x; }(5)",
+                expected: 5,
+            },
+        ];
+
+        for t in tests {
+            assert_integer_object(eval(t.input), t.expected)
         }
     }
 
