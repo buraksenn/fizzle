@@ -506,6 +506,21 @@ mod test {
         }
     }
 
+    #[test]
+    fn function_object() {
+        let input = "fn(x) { x + 2; };";
+        let evaluated = eval(input);
+
+        match &*evaluated {
+            Object::Function(f) => {
+                assert_eq!(f.parameters.len(), 1);
+                assert_eq!(f.parameters.first().unwrap(), "x");
+                assert_eq!(f.body.to_string(), "(x + 2)");
+            }
+            _ => panic!("expected function object but got {:?}", evaluated),
+        }
+    }
+
     fn eval(input: &str) -> Rc<Object> {
         let _ = env_logger::builder()
             .filter(None, log::LevelFilter::Debug)
