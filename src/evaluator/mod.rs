@@ -3,8 +3,11 @@ use std::{cell::RefCell, rc::Rc};
 use anyhow::anyhow;
 
 use crate::{
-    ast::{BlockStatement, Expression, Node, Program, Statement},
-    object::{environment::Environment, object::Object},
+    ast::{BlockStatement, Expression, FunctionExpression, Node, Program, Statement},
+    object::{
+        environment::Environment,
+        object::{Function, Object},
+    },
     token::Token,
 };
 
@@ -87,7 +90,11 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
                 }
             }
         }
-        Expression::Function(func) => Ok(Rc::new(Object::Function(Box::new(x)))),
+        Expression::Function(func) => Ok(Rc::new(Object::Function(Box::new(Function {
+            parameters: func.parameters.clone(),
+            body: func.body.clone(),
+            env: Rc::clone(&env),
+        })))),
         _ => todo!(),
     }
 }

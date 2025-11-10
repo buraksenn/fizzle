@@ -34,9 +34,9 @@ impl fmt::Display for Object {
 
 #[derive(Debug, Clone)]
 pub struct Function {
-    parameters: Vec<Expression>,
-    body: BlockStatement,
-    env: Rc<RefCell<Environment>>,
+    pub parameters: Vec<String>,
+    pub body: BlockStatement,
+    pub env: Rc<RefCell<Environment>>,
 }
 
 impl Function {
