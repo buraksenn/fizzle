@@ -3,7 +3,7 @@ use std::{cell::RefCell, rc::Rc};
 use anyhow::anyhow;
 
 use crate::{
-    ast::{BlockStatement, Expression, FunctionExpression, Node, Program, Statement},
+    ast::{BlockStatement, Expression, Node, Program, Statement},
     object::{
         environment::Environment,
         object::{Function, Object},
@@ -38,7 +38,7 @@ fn evaluate_statement(st: &Statement, env: Rc<RefCell<Environment>>) -> Evaluato
         Statement::Expression { value } => evaluate_expression(value, env),
         Statement::Return { value } => {
             let exp = evaluate_expression(value, env)?;
-            Ok(Rc::new(Object::Return(Box::new((*exp).clone()))))
+            Ok(Rc::new(Object::Return(Rc::new((*exp).clone()))))
         }
         Statement::Let { name, value } => evaluate_let_statement(name, value, env),
     }
@@ -112,13 +112,16 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
 
             apply_function(&obj_func, args)
         }
-        _ => todo!(),
     }
 }
 
 fn apply_function(f: &Function, args: Vec<Rc<Object>>) -> EvaluatorResult {
     let extended = extend_function_env(f, &args);
     let evaluated = evaluate_block_statement(&f.body, extended)?;
+
+    if let Object::Return(v) = &*evaluated {
+        return Ok(Rc::clone(v));
+    }
     Ok(evaluated)
 }
 

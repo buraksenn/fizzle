@@ -1,15 +1,12 @@
 use std::{cell::RefCell, fmt, rc::Rc};
 
-use crate::{
-    ast::{BlockStatement, Expression},
-    object::environment::Environment,
-};
+use crate::{ast::BlockStatement, object::environment::Environment};
 
 #[derive(Debug, Clone)]
 pub enum Object {
     Integer(i64),
     Boolean(bool),
-    Return(Box<Object>),
+    Return(Rc<Object>),
     Function(Box<Function>),
     Null,
 }
