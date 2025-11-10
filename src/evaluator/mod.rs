@@ -598,6 +598,17 @@ mod test {
         }
     }
 
+    #[test]
+    fn closures() {
+        let input = "let newAdder = fn(x) {
+  fn(y) { x + y };
+};
+
+let addTwo = newAdder(2);
+addTwo(2);";
+        assert_integer_object(eval(input), 4)
+    }
+
     fn eval(input: &str) -> Rc<Object> {
         let _ = env_logger::builder()
             .filter(None, log::LevelFilter::Debug)
