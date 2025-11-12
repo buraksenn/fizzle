@@ -684,6 +684,37 @@ addTwo(2);";
                 input: r#"len("hello world")"#,
                 expected: Object::Integer(11),
             },
+            Test {
+                input: "first([1, 2, 3])",
+                expected: Object::Integer(1),
+            },
+            Test {
+                input: "first([])",
+                expected: Object::Null,
+            },
+            Test {
+                input: "last([1, 2, 3])",
+                expected: Object::Integer(3),
+            },
+            Test {
+                input: "last([])",
+                expected: Object::Null,
+            },
+            Test {
+                input: "rest([1, 2, 3])",
+                expected: Object::Array(Rc::new(vec![
+                    Rc::new(Object::Integer(2)),
+                    Rc::new(Object::Integer(3)),
+                ])),
+            },
+            Test {
+                input: "rest([])",
+                expected: Object::Array(Rc::new(vec![])),
+            },
+            Test {
+                input: "push([], 1)",
+                expected: Object::Array(Rc::new(vec![Rc::new(Object::Integer(1))])),
+            },
         ];
 
         for t in tests {
@@ -695,6 +726,32 @@ addTwo(2);";
                     "on input {} expected {} but got {}",
                     t.input, exp, got
                 ),
+                (Object::Null, Object::Null) => {
+                    // Both are null, test passes
+                }
+                (Object::Array(exp), Object::Array(got)) => {
+                    assert_eq!(
+                        exp.len(),
+                        got.len(),
+                        "on input {} array lengths differ",
+                        t.input
+                    );
+                    for (i, (e, g)) in exp.iter().zip(got.iter()).enumerate() {
+                        match (&**e, &**g) {
+                            (Object::Integer(exp_val), Object::Integer(got_val)) => {
+                                assert_eq!(
+                                    exp_val, got_val,
+                                    "on input {} element {} differs",
+                                    t.input, i
+                                );
+                            }
+                            _ => panic!(
+                                "on input {} element {} expected {:?} but got {:?}",
+                                t.input, i, e, g
+                            ),
+                        }
+                    }
+                }
                 _ => panic!(
                     "on input {} expected {:?} but got {:?}",
                     t.input, t.expected, obj
