@@ -54,7 +54,6 @@ impl<'a> Lexer<'a> {
             Some('>') => Token::Gt,
             Some('"') => {
                 let s = self.chars.by_ref().take_while(|ch| *ch != '"').collect();
-                self.chars.next();
                 Token::String(s)
             }
             Some(ch) => {

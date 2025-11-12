@@ -1,6 +1,9 @@
 use std::{cell::RefCell, fmt, rc::Rc};
 
-use crate::{ast::BlockStatement, object::environment::Environment};
+use crate::{
+    ast::BlockStatement,
+    object::{builtin::BuiltinFuncType, environment::Environment},
+};
 
 #[derive(Debug, Clone)]
 pub enum Object {
@@ -9,6 +12,7 @@ pub enum Object {
     Boolean(bool),
     Return(Rc<Object>),
     Function(Box<Function>),
+    Builtin(BuiltinFuncType),
     Null,
 }
 
@@ -20,6 +24,7 @@ impl Object {
             Object::String(s) => s.clone(),
             Object::Return(obj) => obj.to_string(),
             Object::Function(f) => f.inspect(),
+            Object::Builtin(_) => "builtin function".into(),
             Object::Null => "null".into(),
         }
     }

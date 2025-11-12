@@ -5,6 +5,7 @@ use anyhow::anyhow;
 use crate::{
     ast::{BlockStatement, Expression, Node, Program, Statement},
     object::{
+        builtin,
         environment::Environment,
         object::{Function, Object},
     },
@@ -58,14 +59,11 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
     match exp {
         Expression::IntegerLiteral(i) => Ok(Rc::new(Object::Integer(*i))),
         Expression::Boolean(b) => Ok(Rc::new(Object::Boolean(*b))),
-        Expression::Identifier(s) => {
-            let val = env
-                .borrow()
-                .get(s)
-                .ok_or(anyhow!("identifier {} does not exist", s))?;
-
-            Ok(val)
-        }
+        Expression::Identifier(s) => env
+            .borrow()
+            .get(s)
+            .or_else(|| builtin::from_str(&s).map(|b| Rc::new(Object::Builtin(b))))
+            .ok_or_else(|| anyhow!("identifier {} does not exist", s)),
         Expression::StringLiteral(s) => Ok(Rc::new(Object::String(s.clone()))),
         Expression::Prefix { operator, operand } => {
             let right = evaluate_expression(operand, env)?;
@@ -99,19 +97,17 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
         Expression::Call(call) => {
             let evaluated_func = evaluate_expression(&call.function, Rc::clone(&env))?;
 
-            let obj_func = match evaluated_func.as_ref() {
-                Object::Function(f) => Ok(f),
-                obj => Err(anyhow!("expected function, got {}", obj)),
-            }?;
-
             let mut args: Vec<Rc<Object>> = Vec::with_capacity(call.arguments.len());
-
             for arg in call.arguments.iter() {
                 let obj = evaluate_expression(arg, Rc::clone(&env))?;
                 args.push(obj);
             }
 
-            apply_function(&obj_func, args)
+            match evaluated_func.as_ref() {
+                Object::Function(f) => apply_function(&f, args),
+                Object::Builtin(b) => b(args),
+                obj => Err(anyhow!("expected function, got {}", obj)),
+            }
         }
     }
 }
@@ -637,6 +633,44 @@ addTwo(2);";
         match eval(input).as_ref() {
             Object::String(s) => assert_eq!(s, "Hello World!"),
             obj => panic!("expected string but got {}", obj),
+        }
+    }
+
+    #[test]
+    fn test_builtin_functions() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: Object,
+        }
+        let tests = vec![
+            Test {
+                input: r#"len("")"#,
+                expected: Object::Integer(0),
+            },
+            Test {
+                input: r#"len("four")"#,
+                expected: Object::Integer(4),
+            },
+            Test {
+                input: r#"len("hello world")"#,
+                expected: Object::Integer(11),
+            },
+        ];
+
+        for t in tests {
+            let obj = eval(t.input);
+
+            match (&t.expected, &*obj) {
+                (Object::Integer(exp), Object::Integer(got)) => assert_eq!(
+                    *exp, *got,
+                    "on input {} expected {} but got {}",
+                    t.input, exp, got
+                ),
+                _ => panic!(
+                    "on input {} expected {:?} but got {:?}",
+                    t.input, t.expected, obj
+                ),
+            }
         }
     }
 
