@@ -108,6 +108,19 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
                 obj => Err(anyhow!("expected function, got {}", obj)),
             }
         }
+        Expression::Index(idx) => {
+            let left = evaluate_expression(&idx.left, Rc::clone(&env))?;
+            let index = evaluate_expression(&idx.index, Rc::clone(&env))?;
+
+            match (&*left, &*index) {
+                (Object::Array(a), Object::Integer(i)) => Ok(Rc::clone(&a[*i as usize])),
+                (l, i) => Err(anyhow!(
+                    "expected array and integer pair but got {} and {}",
+                    l,
+                    i
+                )),
+            }
+        }
     }
 }
 
@@ -684,6 +697,67 @@ addTwo(2);";
                     t.input, t.expected, obj
                 ),
             }
+        }
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let obj = eval(input);
+        match &*obj {
+            Object::Array(a) => {
+                assert_integer_object(a.get(0).unwrap().clone(), 1);
+                assert_integer_object(a.get(1).unwrap().clone(), 4);
+                assert_integer_object(a.get(2).unwrap().clone(), 6);
+            }
+            _ => panic!("expected array but got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_array_index_expressions() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: i64,
+        }
+        let tests = vec![
+            Test {
+                input: "[1, 2, 3][0]",
+                expected: 1,
+            },
+            Test {
+                input: "[1, 2, 3][1]",
+                expected: 2,
+            },
+            Test {
+                input: "[1, 2, 3][2]",
+                expected: 3,
+            },
+            Test {
+                input: "let i = 0; [1][i];",
+                expected: 1,
+            },
+            Test {
+                input: "[1, 2, 3][1 + 1];",
+                expected: 3,
+            },
+            Test {
+                input: "let myArray = [1, 2, 3]; myArray[2];",
+                expected: 3,
+            },
+            Test {
+                input: "let myArray = [1, 2, 3]; myArray[0] + myArray[1] + myArray[2];",
+                expected: 6,
+            },
+            Test {
+                input: "let myArray = [1, 2, 3]; let i = myArray[0]; myArray[i]",
+                expected: 2,
+            },
+        ];
+
+        for t in tests {
+            let obj = eval(t.input);
+            assert_integer_object(obj, t.expected);
         }
     }
 

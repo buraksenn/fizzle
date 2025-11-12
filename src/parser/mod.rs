@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        BlockStatement, CallExpression, Expression, FunctionExpression, IfExpression, Node,
-        Program, Statement,
+        BlockStatement, CallExpression, Expression, FunctionExpression, IfExpression,
+        IndexExpression, Node, Program, Statement,
     },
     lexer::Lexer,
     parser::precedence::Precedence,
@@ -119,6 +119,7 @@ impl<'a> Parser<'a> {
             | Token::Lt
             | Token::Gt => Some(parse_infix_expression),
             Token::Lparen => Some(parse_call_expression),
+            Token::Lbracket => Some(parse_index_expression),
             _ => None,
         }
     }
@@ -293,6 +294,17 @@ fn parse_call_expression(parser: &mut Parser<'_>, left: Expression) -> ParserRes
         function: left,
         arguments: parser.parse_expression_list(Token::Rparen)?,
     })))
+}
+
+fn parse_index_expression(parser: &mut Parser<'_>, left: Expression) -> ParserResult<Expression> {
+    parser.next_token();
+    let exp = Expression::Index(Box::new(IndexExpression {
+        left: left,
+        index: parser.parse_expression(Precedence::Lowest)?,
+    }));
+    parser.expect_peek(Token::Rbracket)?;
+
+    Ok(exp)
 }
 
 fn parse_function_parameters(parser: &mut Parser<'_>) -> ParserResult<Vec<String>> {
@@ -1113,6 +1125,21 @@ mod test {
                 test_integer_infix(a.last().unwrap(), 3, Token::Plus, 3);
             }
             _ => panic!("expected array literal but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn test_index_expressions() {
+        let input = "myArray[1 + 1]";
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::Index(i) => {
+                test_identifier(&i.left, "myArray");
+                test_integer_infix(&i.index, 1, Token::Plus, 1);
+            }
+            _ => panic!("expected an index expression but got {:?}", exp),
         }
     }
 

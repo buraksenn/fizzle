@@ -27,6 +27,7 @@ pub enum Expression {
     Function(Box<FunctionExpression>),
     Call(Box<CallExpression>),
     Array(Vec<Expression>),
+    Index(Box<IndexExpression>),
     Boolean(bool),
 }
 
@@ -53,6 +54,7 @@ impl fmt::Display for Expression {
                 .map(|pm| pm.to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
+            Expression::Index(idx) => format!("{}[{}]", idx.left, idx.index),
         };
         write!(f, "{}", s)
     }
@@ -100,6 +102,12 @@ impl fmt::Display for IfExpression {
         }
         Ok(())
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct IndexExpression {
+    pub left: Expression,
+    pub index: Expression,
 }
 
 #[derive(Debug, Clone)]
