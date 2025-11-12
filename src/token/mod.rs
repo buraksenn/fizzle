@@ -6,6 +6,7 @@ pub enum Token {
     Eof,
     Ident(String),
     Int(i64),
+    String(String),
 
     Assign,
     Plus,
@@ -73,7 +74,15 @@ impl fmt::Display for Token {
             Token::Lbrace => write!(f, "{{"),
             Token::Rbrace => write!(f, "}}"),
             Token::Comma => write!(f, ","),
-            tok => write!(f, "{:?}", tok),
+            Token::String(s) => write!(f, "{}", s),
+            Token::Let => write!(f, "let"),
+            Token::True => write!(f, "true"),
+            Token::False => write!(f, "false"),
+            Token::If => write!(f, "if"),
+            Token::Else => write!(f, "else"),
+            Token::Return => write!(f, "return"),
+            Token::Illegal => write!(f, "illegal"),
+            Token::Eof => write!(f, "EOF"),
         }
     }
 }

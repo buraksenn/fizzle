@@ -52,7 +52,11 @@ impl<'a> Lexer<'a> {
             Some('/') => Token::Slash,
             Some('<') => Token::Lt,
             Some('>') => Token::Gt,
-
+            Some('"') => {
+                let s = self.chars.by_ref().take_while(|ch| *ch != '"').collect();
+                self.chars.next();
+                Token::String(s)
+            }
             Some(ch) => {
                 if ch.is_alphabetic() {
                     let mut identifier = vec![ch];
@@ -83,7 +87,7 @@ mod tests {
 
     #[test]
     fn test_next_token_simple_symbols() {
-        let input = "let five = 5;
+        let input = r#"let five = 5;
         let ten = 10;
         let add = fn(x, y) {
         x + y;
@@ -100,7 +104,9 @@ mod tests {
 
         10 == 10;
         10 != 9;
-        ";
+        "foobar"
+        "foo bar"
+        "#;
 
         let tests = vec![
             Token::Let,
@@ -176,6 +182,8 @@ mod tests {
             Token::Neq,
             Token::Int(9),
             Token::Semicolon,
+            Token::String("foobar".into()),
+            Token::String("foo bar".into()),
             Token::Eof,
         ];
 
