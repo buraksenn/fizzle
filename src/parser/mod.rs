@@ -144,7 +144,9 @@ impl<'a> Parser<'a> {
 
         let exp = self.parse_expression(Precedence::Lowest)?;
 
-        self.expect_peek(Token::Semicolon)?;
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
 
         Ok(Statement::Let { name, value: exp })
     }
@@ -153,7 +155,9 @@ impl<'a> Parser<'a> {
         self.next_token();
         let value = self.parse_expression(Precedence::Lowest)?;
 
-        self.expect_peek(Token::Semicolon)?;
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
 
         Ok(Statement::Return { value })
     }
