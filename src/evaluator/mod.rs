@@ -1,6 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use anyhow::anyhow;
+use anyhow::{Ok, anyhow};
 
 use crate::{
     ast::{BlockStatement, Expression, Node, Program, Statement},
@@ -113,7 +113,10 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
             let index = evaluate_expression(&idx.index, Rc::clone(&env))?;
 
             match (&*left, &*index) {
-                (Object::Array(a), Object::Integer(i)) => Ok(Rc::clone(&a[*i as usize])),
+                (Object::Array(a), Object::Integer(i)) => match &a.get(*i as usize) {
+                    Some(v) => Ok(Rc::clone(v)),
+                    None => Ok(Rc::new(Object::Null)),
+                },
                 (l, i) => Err(anyhow!(
                     "expected array and integer pair but got {} and {}",
                     l,
@@ -758,6 +761,16 @@ addTwo(2);";
         for t in tests {
             let obj = eval(t.input);
             assert_integer_object(obj, t.expected);
+        }
+    }
+
+    #[test]
+    fn test_invalid_array_index() {
+        let inputs = vec!["[1, 2, 3][3]", "[1, 2, 3][-1]"];
+
+        for input in inputs {
+            let obj = eval(input);
+            assert_null_object(obj);
         }
     }
 
