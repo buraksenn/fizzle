@@ -126,6 +126,7 @@ impl<'a> Parser<'a> {
     fn current_prefix_fn(&mut self) -> Option<PrefixParseFn> {
         match self.current_token {
             Token::Ident(_) => Some(parse_identifier),
+            Token::String(_) => Some(parse_string_literal),
             Token::Int(_) => Some(parse_integer_literal),
             Token::True | Token::False => Some(parse_boolean_expression),
             Token::Minus | Token::Bang => Some(parse_prefix_expression),
@@ -224,6 +225,17 @@ impl<'a> Parser<'a> {
 
     fn current_precendence(&self) -> Precedence {
         Precedence::from_token(&self.current_token)
+    }
+}
+
+fn parse_string_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    if let Token::String(ref s) = parser.current_token {
+        Ok(Expression::StringLiteral(s.clone()))
+    } else {
+        Err(anyhow!(
+            "expected string literal token but got: {}",
+            parser.current_token
+        ))
     }
 }
 
@@ -1061,6 +1073,18 @@ mod test {
                 }
                 _ => panic!("{:?} is not a call expression", exp),
             }
+        }
+    }
+
+    #[test]
+    fn test_string_literal_expression() {
+        let input = r#""hello world""#;
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::StringLiteral(s) => assert_eq!(s, "hello world"),
+            _ => panic!("expected string literal but got {:?}", exp),
         }
     }
 

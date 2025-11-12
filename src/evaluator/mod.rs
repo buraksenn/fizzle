@@ -66,6 +66,7 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
 
             Ok(val)
         }
+        Expression::StringLiteral(s) => Ok(Rc::new(Object::String(s.clone()))),
         Expression::Prefix { operator, operand } => {
             let right = evaluate_expression(operand, env)?;
             evaluate_prefix_expression(operator, right)
@@ -186,6 +187,13 @@ fn evaluate_infix_expression(
         (Object::Boolean(l), Object::Boolean(r)) => match operator {
             Token::Eq => Ok(Rc::new(Object::Boolean(l == r))),
             Token::Neq => Ok(Rc::new(Object::Boolean(l != r))),
+            _ => Err(anyhow!(
+                "unsupported boolean infix expression: {}",
+                operator
+            ))?,
+        },
+        (Object::String(l), Object::String(r)) => match operator {
+            Token::Plus => Ok(Rc::new(Object::String(l.clone() + &r))),
             _ => Err(anyhow!(
                 "unsupported boolean infix expression: {}",
                 operator
@@ -610,6 +618,26 @@ mod test {
 let addTwo = newAdder(2);
 addTwo(2);";
         assert_integer_object(eval(input), 4)
+    }
+
+    #[test]
+    fn string_literal() {
+        let input = r#""Hello World!"#;
+
+        match &*eval(input) {
+            Object::String(s) => assert_eq!(s, "Hello World!"),
+            obj => panic!("expected string but got {}", obj),
+        }
+    }
+
+    #[test]
+    fn string_concatenation() {
+        let input = r#""Hello" + " " + "World!""#;
+
+        match eval(input).as_ref() {
+            Object::String(s) => assert_eq!(s, "Hello World!"),
+            obj => panic!("expected string but got {}", obj),
+        }
     }
 
     fn eval(input: &str) -> Rc<Object> {

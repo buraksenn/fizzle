@@ -5,6 +5,7 @@ use crate::{ast::BlockStatement, object::environment::Environment};
 #[derive(Debug, Clone)]
 pub enum Object {
     Integer(i64),
+    String(String),
     Boolean(bool),
     Return(Rc<Object>),
     Function(Box<Function>),
@@ -16,6 +17,7 @@ impl Object {
         match self {
             Object::Integer(i) => i.to_string(),
             Object::Boolean(b) => b.to_string(),
+            Object::String(s) => s.clone(),
             Object::Return(obj) => obj.to_string(),
             Object::Function(f) => f.inspect(),
             Object::Null => "null".into(),

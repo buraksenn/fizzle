@@ -13,6 +13,7 @@ pub enum Node {
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i64),
+    StringLiteral(String),
     Prefix {
         operator: Token,
         operand: Box<Expression>,
@@ -32,6 +33,7 @@ impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
             Expression::Identifier(s) => s.clone(),
+            Expression::StringLiteral(s) => s.clone(),
             Expression::IntegerLiteral(i) => format!("{}", i),
             Expression::Boolean(val) => format!("{}", val),
             Expression::Prefix { operator, operand } => {
