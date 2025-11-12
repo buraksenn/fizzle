@@ -13,6 +13,7 @@ pub enum Object {
     Return(Rc<Object>),
     Function(Box<Function>),
     Builtin(BuiltinFuncType),
+    Array(Rc<Vec<Rc<Object>>>),
     Null,
 }
 
@@ -25,6 +26,11 @@ impl Object {
             Object::Return(obj) => obj.to_string(),
             Object::Function(f) => f.inspect(),
             Object::Builtin(_) => "builtin function".into(),
+            Object::Array(a) => a
+                .iter()
+                .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
             Object::Null => "null".into(),
         }
     }

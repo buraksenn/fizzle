@@ -26,6 +26,7 @@ pub enum Expression {
     If(Box<IfExpression>),
     Function(Box<FunctionExpression>),
     Call(Box<CallExpression>),
+    Array(Vec<Expression>),
     Boolean(bool),
 }
 
@@ -47,6 +48,11 @@ impl fmt::Display for Expression {
             Expression::If(exp) => exp.to_string(),
             Expression::Function(f) => f.to_string(),
             Expression::Call(c) => c.to_string(),
+            Expression::Array(a) => a
+                .iter()
+                .map(|pm| pm.to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
         };
         write!(f, "{}", s)
     }
@@ -60,7 +66,7 @@ pub struct FunctionExpression {
 
 impl fmt::Display for FunctionExpression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let parameters: Vec<String> = (self.parameters).iter().map(|pm| pm.to_string()).collect();
+        let parameters: Vec<String> = self.parameters.iter().map(|pm| pm.to_string()).collect();
         write!(f, "fn({}) {{ {} }}", parameters.join(", "), self.body)
     }
 }

@@ -65,6 +65,10 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
             .or_else(|| builtin::from_str(&s).map(|b| Rc::new(Object::Builtin(b))))
             .ok_or_else(|| anyhow!("identifier {} does not exist", s)),
         Expression::StringLiteral(s) => Ok(Rc::new(Object::String(s.clone()))),
+        Expression::Array(literals) => Ok(Rc::new(Object::Array(Rc::new(evaluate_expressions(
+            literals,
+            Rc::clone(&env),
+        )?)))),
         Expression::Prefix { operator, operand } => {
             let right = evaluate_expression(operand, env)?;
             evaluate_prefix_expression(operator, right)
@@ -96,12 +100,7 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
         })))),
         Expression::Call(call) => {
             let evaluated_func = evaluate_expression(&call.function, Rc::clone(&env))?;
-
-            let mut args: Vec<Rc<Object>> = Vec::with_capacity(call.arguments.len());
-            for arg in call.arguments.iter() {
-                let obj = evaluate_expression(arg, Rc::clone(&env))?;
-                args.push(obj);
-            }
+            let args = evaluate_expressions(&call.arguments, env)?;
 
             match evaluated_func.as_ref() {
                 Object::Function(f) => apply_function(&f, args),
@@ -110,6 +109,20 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
             }
         }
     }
+}
+
+fn evaluate_expressions(
+    exps: &Vec<Expression>,
+    env: Rc<RefCell<Environment>>,
+) -> Result<Vec<Rc<Object>>, anyhow::Error> {
+    let mut objs = Vec::with_capacity(exps.len());
+
+    for e in exps {
+        let res = evaluate_expression(&e, Rc::clone(&env))?;
+        objs.push(res);
+    }
+
+    Ok(objs)
 }
 
 fn apply_function(f: &Function, args: Vec<Rc<Object>>) -> EvaluatorResult {

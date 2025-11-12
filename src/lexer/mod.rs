@@ -40,6 +40,9 @@ impl<'a> Lexer<'a> {
             Some('{') => Token::Lbrace,
             Some('}') => Token::Rbrace,
 
+            Some('[') => Token::Lbracket,
+            Some(']') => Token::Rbracket,
+
             Some('+') => Token::Plus,
             Some('-') => Token::Minus,
             Some('!') => {
@@ -105,6 +108,7 @@ mod tests {
         10 != 9;
         "foobar"
         "foo bar"
+        [1, 2];
         "#;
 
         let tests = vec![
@@ -183,6 +187,12 @@ mod tests {
             Token::Semicolon,
             Token::String("foobar".into()),
             Token::String("foo bar".into()),
+            Token::Lbracket,
+            Token::Int(1),
+            Token::Comma,
+            Token::Int(2),
+            Token::Rbracket,
+            Token::Semicolon,
             Token::Eof,
         ];
 

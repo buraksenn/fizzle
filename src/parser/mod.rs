@@ -133,6 +133,7 @@ impl<'a> Parser<'a> {
             Token::Lparen => Some(parse_grouped_expression),
             Token::If => Some(parse_if_expression),
             Token::Function => Some(parse_function_expression),
+            Token::Lbracket => Some(parse_array_literal),
             _ => None,
         }
     }
@@ -387,6 +388,13 @@ fn parse_boolean_expression(parser: &mut Parser<'_>) -> ParserResult<Expression>
         )),
     }
 }
+
+fn parse_array_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    Ok(Expression::Array(
+        parser.parse_expression_list(Token::Rbracket)?,
+    ))
+}
+
 fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     let tok = parser.current_token.clone();
     parser.next_token();
@@ -1089,6 +1097,22 @@ mod test {
         match exp {
             Expression::StringLiteral(s) => assert_eq!(s, "hello world"),
             _ => panic!("expected string literal but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn test_array_literals() {
+        let input = "[1, 2 * 2, 3 + 3]";
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::Array(a) => {
+                test_integer_literal(a.first().unwrap(), 1);
+                test_integer_infix(a.get(1).unwrap(), 2, Token::Asterisk, 2);
+                test_integer_infix(a.last().unwrap(), 3, Token::Plus, 3);
+            }
+            _ => panic!("expected array literal but got {:?}", exp),
         }
     }
 
