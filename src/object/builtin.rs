@@ -14,6 +14,7 @@ pub enum Builtin {
     Last,
     Rest,
     Push,
+    Puts,
 }
 
 impl Builtin {
@@ -24,6 +25,7 @@ impl Builtin {
             "last" => Some(Object::Builtin(Builtin::Last)),
             "rest" => Some(Object::Builtin(Builtin::Rest)),
             "push" => Some(Object::Builtin(Builtin::Push)),
+            "puts" => Some(Object::Builtin(Builtin::Puts)),
             _ => None,
         }
     }
@@ -35,6 +37,7 @@ impl Builtin {
             Builtin::Last => last,
             Builtin::Rest => rest,
             Builtin::Push => push,
+            Builtin::Puts => puts,
         }
     }
 }
@@ -121,4 +124,16 @@ fn push(args: Vec<Rc<Object>>) -> BuiltinResult {
         }
         obj => Err(anyhow!("expected array but got object: {}", obj)),
     }
+}
+
+fn puts(args: Vec<Rc<Object>>) -> BuiltinResult {
+    if args.len() == 0 {
+        return Err(anyhow!("expected at least one number but got zero"));
+    }
+
+    for obj in args.iter() {
+        println!("{}", obj.inspect());
+    }
+
+    Ok(Rc::new(Object::Null))
 }
