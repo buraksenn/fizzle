@@ -1,19 +1,26 @@
-use std::{cell::RefCell, fmt, rc::Rc};
+use std::{
+    cell::RefCell,
+    collections::HashMap,
+    fmt,
+    hash::{Hash, Hasher},
+    rc::Rc,
+};
 
 use crate::{
     ast::BlockStatement,
-    object::{builtin::BuiltinFuncType, environment::Environment},
+    object::{builtin::Builtin, environment::Environment},
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub enum Object {
     Integer(i64),
     String(String),
     Boolean(bool),
     Return(Rc<Object>),
     Function(Box<Function>),
-    Builtin(BuiltinFuncType),
+    Builtin(Builtin),
     Array(Rc<Vec<Rc<Object>>>),
+    HashMap(Rc<HashMapObject>),
     Null,
 }
 
@@ -29,6 +36,12 @@ impl Object {
             Object::Array(a) => a
                 .iter()
                 .map(|e| e.to_string())
+                .collect::<Vec<String>>()
+                .join(", "),
+            Object::HashMap(hm) => hm
+                .map
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k, v))
                 .collect::<Vec<String>>()
                 .join(", "),
             Object::Null => "null".into(),
@@ -49,6 +62,19 @@ pub struct Function {
     pub env: Rc<RefCell<Environment>>,
 }
 
+impl PartialEq for Function {
+    fn eq(&self, _other: &Function) -> bool {
+        panic!("partial eq not implemented for function");
+    }
+}
+impl Eq for Function {}
+
+impl Hash for Function {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
+        panic!("hash for function not supported");
+    }
+}
+
 impl Function {
     fn inspect(&self) -> String {
         let params: Vec<String> = (&self.parameters)
@@ -60,5 +86,23 @@ impl Function {
             params.join(", "),
             self.body.to_string()
         )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct HashMapObject {
+    pub map: HashMap<Rc<Object>, Rc<Object>>,
+}
+
+impl PartialEq for HashMapObject {
+    fn eq(&self, _other: &HashMapObject) -> bool {
+        panic!("partial eq not implemented for hash");
+    }
+}
+impl Eq for HashMapObject {}
+
+impl Hash for HashMapObject {
+    fn hash<H: Hasher>(&self, _state: &mut H) {
+        panic!("hash for hash maps not supported");
     }
 }

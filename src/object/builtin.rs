@@ -7,14 +7,35 @@ use crate::object::object::Object;
 pub type BuiltinResult = Result<Rc<Object>, anyhow::Error>;
 pub type BuiltinFuncType = fn(args: Vec<Rc<Object>>) -> BuiltinResult;
 
-pub fn from_str(s: &str) -> Option<BuiltinFuncType> {
-    match s {
-        "len" => Some(len),
-        "first" => Some(first),
-        "last" => Some(last),
-        "rest" => Some(rest),
-        "push" => Some(push),
-        _ => None,
+#[derive(Hash, Eq, PartialEq, Clone, Debug, Copy)]
+pub enum Builtin {
+    Len,
+    First,
+    Last,
+    Rest,
+    Push,
+}
+
+impl Builtin {
+    pub fn lookup(name: &str) -> Option<Object> {
+        match name {
+            "len" => Some(Object::Builtin(Builtin::Len)),
+            "first" => Some(Object::Builtin(Builtin::First)),
+            "last" => Some(Object::Builtin(Builtin::Last)),
+            "rest" => Some(Object::Builtin(Builtin::Rest)),
+            "push" => Some(Object::Builtin(Builtin::Push)),
+            _ => None,
+        }
+    }
+
+    pub fn to_func(&self) -> BuiltinFuncType {
+        match self {
+            Builtin::Len => len,
+            Builtin::First => first,
+            Builtin::Last => last,
+            Builtin::Rest => rest,
+            Builtin::Push => push,
+        }
     }
 }
 

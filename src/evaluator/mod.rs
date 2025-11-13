@@ -1,13 +1,13 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 use anyhow::{Ok, anyhow};
 
 use crate::{
     ast::{BlockStatement, Expression, Node, Program, Statement},
     object::{
-        builtin,
+        builtin::Builtin,
         environment::Environment,
-        object::{Function, Object},
+        object::{Function, HashMapObject, Object},
     },
     token::Token,
 };
@@ -62,13 +62,23 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
         Expression::Identifier(s) => env
             .borrow()
             .get(s)
-            .or_else(|| builtin::from_str(&s).map(|b| Rc::new(Object::Builtin(b))))
+            .or_else(|| Builtin::lookup(&s).map(|b| Rc::new(b)))
             .ok_or_else(|| anyhow!("identifier {} does not exist", s)),
         Expression::StringLiteral(s) => Ok(Rc::new(Object::String(s.clone()))),
         Expression::Array(literals) => Ok(Rc::new(Object::Array(Rc::new(evaluate_expressions(
             literals,
             Rc::clone(&env),
         )?)))),
+        Expression::HashMap(hashmap) => {
+            let mut hm = HashMap::new();
+            for (k, v) in hashmap.map.iter() {
+                let key = evaluate_expression(k, Rc::clone(&env))?;
+                let val = evaluate_expression(v, Rc::clone(&env))?;
+                hm.insert(key, val);
+            }
+
+            Ok(Rc::new(Object::HashMap(Rc::new(HashMapObject { map: hm }))))
+        }
         Expression::Prefix { operator, operand } => {
             let right = evaluate_expression(operand, env)?;
             evaluate_prefix_expression(operator, right)
@@ -104,11 +114,10 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
 
             match evaluated_func.as_ref() {
                 Object::Function(f) => apply_function(&f, args),
-                Object::Builtin(b) => b(args),
+                Object::Builtin(b) => Builtin::to_func(b)(args),
                 obj => Err(anyhow!("expected function, got {}", obj)),
             }
         }
-        Expression::HashMap(_) => todo!(),
         Expression::Index(idx) => {
             let left = evaluate_expression(&idx.left, Rc::clone(&env))?;
             let index = evaluate_expression(&idx.index, Rc::clone(&env))?;
