@@ -127,8 +127,12 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
                     Some(v) => Ok(Rc::clone(v)),
                     None => Ok(Rc::new(Object::Null)),
                 },
+                (Object::HashMap(hm), obj) => match hm.map.get(obj) {
+                    Some(v) => Ok(Rc::clone(v)),
+                    None => Ok(Rc::new(Object::Null)),
+                },
                 (l, i) => Err(anyhow!(
-                    "expected array and integer pair but got {} and {}",
+                    "expected array&integer or hashmap&obj pair but got {} and {}",
                     l,
                     i
                 )),
@@ -838,6 +842,103 @@ addTwo(2);";
         for input in inputs {
             let obj = eval(input);
             assert_null_object(obj);
+        }
+    }
+
+    #[test]
+    fn hash_literal() {
+        let input = r#"let two = "two";
+            {
+                "one": 10 - 9,
+                two: 1 + 1,
+                "thr" + "ee": 6 / 2,
+                4: 4,
+                true: 5,
+                false: 6
+            }
+        "#;
+
+        let obj = eval(input);
+        match &*obj {
+            Object::HashMap(h) => {
+                assert_eq!(h.map.len(), 6);
+
+                for (key, value) in &h.map {
+                    match (&*Rc::clone(key), &*Rc::clone(value)) {
+                        (Object::String(k), Object::Integer(val)) => match k.as_str() {
+                            "one" => assert_eq!(*val, 1),
+                            "two" => assert_eq!(*val, 2),
+                            "three" => assert_eq!(*val, 3),
+                            _ => panic!("unexpected string key {}", k),
+                        },
+                        (Object::Boolean(b), Object::Integer(val)) => {
+                            if *b {
+                                assert_eq!(*val, 5)
+                            } else {
+                                assert_eq!(*val, 6)
+                            }
+                        }
+                        (Object::Integer(k), Object::Integer(val)) => assert_eq!(k, val),
+                        _ => panic!("unexpected key value pair {:?} {:?}", key, value),
+                    }
+                }
+            }
+            _ => panic!("expected hash object, but got {:?}", obj),
+        }
+    }
+
+    #[test]
+    fn test_hash_index_expressions() {
+        struct Test<'a> {
+            input: &'a str,
+            expected: Object,
+        }
+        let tests = vec![
+            Test {
+                input: r#" {"foo":5}["foo"] "#,
+                expected: Object::Integer(5),
+            },
+            Test {
+                input: r#" {"foo":5}["bar"] "#,
+                expected: Object::Null,
+            },
+            Test {
+                input: r#" let key = "foo"; {"foo":5}[key] "#,
+                expected: Object::Integer(5),
+            },
+            Test {
+                input: r#" {}["foo"] "#,
+                expected: Object::Null,
+            },
+            Test {
+                input: r#" {5: 5}[5] "#,
+                expected: Object::Integer(5),
+            },
+            Test {
+                input: r#" {true: 5}[true] "#,
+                expected: Object::Integer(5),
+            },
+            Test {
+                input: r#" {false: 5}[false] "#,
+                expected: Object::Integer(5),
+            },
+        ];
+
+        for t in tests {
+            let obj = eval(t.input);
+
+            match (&t.expected, &*obj) {
+                (Object::Integer(exp), Object::Integer(got)) => assert_eq!(
+                    *exp, *got,
+                    "on input {} expected {} but got {}",
+                    t.input, exp, got
+                ),
+                (Object::Null, Object::Null) => {}
+                _ => panic!(
+                    "on input {} expected {:?} but got {:?}",
+                    t.input, t.expected, obj
+                ),
+            }
         }
     }
 
