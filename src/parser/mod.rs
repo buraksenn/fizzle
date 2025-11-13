@@ -1,7 +1,9 @@
+use std::collections::HashMap;
+
 use crate::{
     ast::{
-        BlockStatement, CallExpression, Expression, FunctionExpression, IfExpression,
-        IndexExpression, Node, Program, Statement,
+        BlockStatement, CallExpression, Expression, FunctionExpression, HashExpression,
+        IfExpression, IndexExpression, Node, Program, Statement,
     },
     lexer::Lexer,
     parser::precedence::Precedence,
@@ -135,6 +137,7 @@ impl<'a> Parser<'a> {
             Token::If => Some(parse_if_expression),
             Token::Function => Some(parse_function_expression),
             Token::Lbracket => Some(parse_array_literal),
+            Token::Lbrace => Some(parse_hash_expression),
             _ => None,
         }
     }
@@ -405,6 +408,33 @@ fn parse_array_literal(parser: &mut Parser<'_>) -> ParserResult<Expression> {
     Ok(Expression::Array(
         parser.parse_expression_list(Token::Rbracket)?,
     ))
+}
+
+fn parse_hash_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
+    let mut map = HashMap::new();
+
+    if parser.peek_token_is(&Token::Rbrace) {
+        parser.next_token();
+        return Ok(Expression::HashMap(Box::new(HashExpression { map })));
+    }
+
+    loop {
+        parser.next_token();
+        let key = parser.parse_expression(Precedence::Lowest)?;
+        parser.expect_peek(Token::Colon)?;
+        parser.next_token();
+        let val = parser.parse_expression(Precedence::Lowest)?;
+        map.insert(key, val);
+
+        if !parser.peek_token_is(&Token::Comma) {
+            break;
+        }
+        parser.next_token();
+    }
+
+    parser.expect_peek(Token::Rbrace)?;
+
+    Ok(Expression::HashMap(Box::new(HashExpression { map })))
 }
 
 fn parse_prefix_expression(parser: &mut Parser<'_>) -> ParserResult<Expression> {
@@ -1140,6 +1170,89 @@ mod test {
                 test_integer_infix(&i.index, 1, Token::Plus, 1);
             }
             _ => panic!("expected an index expression but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn hash_literals() {
+        let input = r#"{"one": 1, "two": 2, "three": 3, 4: 4, true: true}"#;
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::HashMap(h) => {
+                assert_eq!(h.map.len(), 5);
+
+                for (k, v) in &h.map {
+                    match (&k, &v) {
+                        (Expression::StringLiteral(key), Expression::IntegerLiteral(int)) => {
+                            match key.as_str() {
+                                "one" => assert_eq!(1, *int),
+                                "two" => assert_eq!(2, *int),
+                                "three" => assert_eq!(3, *int),
+                                _ => panic!("unexpected key {}", k),
+                            }
+                        }
+                        (Expression::IntegerLiteral(key), Expression::IntegerLiteral(int)) => {
+                            assert_eq!(*key, *int);
+                            assert_eq!(*int, 4);
+                        }
+                        (Expression::Boolean(key), Expression::Boolean(val)) => {
+                            assert_eq!(key, val)
+                        }
+                        _ => panic!(
+                            "expected key to be a string and value to be an int but got {:?} and {:?}",
+                            k, v
+                        ),
+                    }
+                }
+            }
+            _ => panic!("expected a hash literal but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn hash_literal_with_expressions() {
+        let input = r#"{"one": 0 + 1, "two": 10 - 8, "three": 15 / 5}"#;
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::HashMap(h) => {
+                assert_eq!(h.map.len(), 3);
+
+                for (k, v) in &h.map {
+                    match (&k, &v) {
+                        (Expression::StringLiteral(key), Expression::Infix { .. }) => {
+                            match key.as_str() {
+                                "one" => test_integer_infix(v, 0, Token::Plus, 1),
+                                "two" => test_integer_infix(v, 10, Token::Minus, 8),
+                                "three" => test_integer_infix(v, 15, Token::Slash, 5),
+                                _ => panic!("unexpected key {}", key),
+                            }
+                        }
+                        _ => panic!(
+                            "expected key to be a string and value to be an infix expression but got {:?} and {:?}",
+                            k, v
+                        ),
+                    }
+                }
+            }
+            _ => panic!("expected a hash literal but got {:?}", exp),
+        }
+    }
+
+    #[test]
+    fn empty_hash_literal() {
+        let input = "{}";
+        let prog = setup(input, 1);
+        let exp = unwrap_first_expression_from_prog(&prog);
+
+        match exp {
+            Expression::HashMap(h) => {
+                assert_eq!(h.map.len(), 0)
+            }
+            _ => panic!("expected a hash literal but got {:?}", exp),
         }
     }
 

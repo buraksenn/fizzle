@@ -1,4 +1,4 @@
-use std::fmt;
+use std::{collections::HashMap, fmt, hash::Hash};
 
 use crate::token::Token;
 
@@ -9,7 +9,7 @@ pub enum Node {
     Statement(Box<Statement>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Expression {
     Identifier(String),
     IntegerLiteral(i64),
@@ -28,6 +28,7 @@ pub enum Expression {
     Call(Box<CallExpression>),
     Array(Vec<Expression>),
     Index(Box<IndexExpression>),
+    HashMap(Box<HashExpression>),
     Boolean(bool),
 }
 
@@ -54,13 +55,19 @@ impl fmt::Display for Expression {
                 .map(|pm| pm.to_string())
                 .collect::<Vec<String>>()
                 .join(", "),
+            Expression::HashMap(hm) => hm
+                .map
+                .iter()
+                .map(|(k, v)| format!("{}: {}", k.to_string(), v.to_string()))
+                .collect::<Vec<String>>()
+                .join(", "),
             Expression::Index(idx) => format!("{}[{}]", idx.left, idx.index),
         };
         write!(f, "{}", s)
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FunctionExpression {
     pub parameters: Vec<String>,
     pub body: BlockStatement,
@@ -73,7 +80,7 @@ impl fmt::Display for FunctionExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct CallExpression {
     pub function: Expression,
     pub arguments: Vec<Expression>,
@@ -86,7 +93,7 @@ impl fmt::Display for CallExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IfExpression {
     pub condition: Expression,
     pub consequence: BlockStatement,
@@ -104,13 +111,24 @@ impl fmt::Display for IfExpression {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IndexExpression {
     pub left: Expression,
     pub index: Expression,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HashExpression {
+    pub map: HashMap<Expression, Expression>,
+}
+
+impl Hash for HashExpression {
+    fn hash<H: std::hash::Hasher>(&self, _state: &mut H) {
+        panic!("hash not implemented for HashLiteral");
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct BlockStatement {
     pub statements: Vec<Statement>,
 }
@@ -126,7 +144,7 @@ impl fmt::Display for BlockStatement {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Statement {
     Let { name: String, value: Expression },
     Return { value: Expression },

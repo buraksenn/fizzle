@@ -108,6 +108,7 @@ fn evaluate_expression(exp: &Expression, env: Rc<RefCell<Environment>>) -> Evalu
                 obj => Err(anyhow!("expected function, got {}", obj)),
             }
         }
+        Expression::HashMap(_) => todo!(),
         Expression::Index(idx) => {
             let left = evaluate_expression(&idx.left, Rc::clone(&env))?;
             let index = evaluate_expression(&idx.index, Rc::clone(&env))?;

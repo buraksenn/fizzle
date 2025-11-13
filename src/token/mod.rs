@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Token {
     Illegal,
     Eof,
@@ -22,6 +22,7 @@ pub enum Token {
 
     Comma,
     Semicolon,
+    Colon,
 
     Lparen,
     Rparen,
@@ -69,6 +70,7 @@ impl fmt::Display for Token {
             Token::Eq => write!(f, "=="),
             Token::Neq => write!(f, "!="),
             Token::Semicolon => write!(f, ";"),
+            Token::Colon => write!(f, ":"),
             Token::Assign => write!(f, "="),
             Token::Function => write!(f, "fn"),
             Token::Lparen => write!(f, "("),
